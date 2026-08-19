@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --color-linen: #fcfbf8;
+  --color-cream: #f6f4ee;
+  --color-sable: #efebe2;
+  --color-sauge: #e7efea;
+  --color-sauge-ink: #2b5248;
+  --color-accent: #3f6f63;
+  --color-accent-hover: #2b5248;
+  --color-terracotta: #c97b5a;
+  --color-terracotta-soft: #f3e4dc;
+  --color-terracotta-ink: #a6644a;
+  --color-danger: #c0573a;
+  --color-ink: #23312c;
+  --color-ink-soft: #35463f;
+
+  --color-body: #55645e;
+  --color-muted: #6b7a74;
+  --color-faint: #8a9691;
+
+  --color-border: #e4e2da;
+  --color-border-soft: #eae7de;
+  --color-border-strong: #dedcd3;
+  --color-border-input: #c6cfc9;
+}
+
+@theme inline {
+  --color-linen: var(--color-linen);
+  --color-cream: var(--color-cream);
+  --color-sable: var(--color-sable);
+  --color-sauge: var(--color-sauge);
+  --color-sauge-ink: var(--color-sauge-ink);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-terracotta: var(--color-terracotta);
+  --color-terracotta-soft: var(--color-terracotta-soft);
+  --color-terracotta-ink: var(--color-terracotta-ink);
+  --color-danger: var(--color-danger);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-body: var(--color-body);
+  --color-muted: var(--color-muted);
+  --color-faint: var(--color-faint);
+  --color-border: var(--color-border);
+  --color-border-soft: var(--color-border-soft);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-input: var(--color-border-input);
+
+  --font-serif: var(--font-newsreader);
+  --font-sans: var(--font-public-sans);
+  --font-mono: var(--font-ibm-plex-mono);
+}
+
+body {
+  background: var(--color-linen);
+  color: var(--color-ink);
+  font-family: var(--font-sans), "Helvetica Neue", Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+.placeholder-photo {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--color-sable) 0 14px,
+    #e6e1d6 14px 28px
+  );
+}
+
+.placeholder-photo-terracotta {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--color-terracotta-soft) 0 14px,
+    #ebdacf 14px 28px
+  );
+}
