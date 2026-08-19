@@ -1,0 +1,19 @@
+# Développement local uniquement. Le déploiement VPS (étape 9 du
+# PROJECT.md) utilisera son propre fichier compose avec ses propres
+# identifiants — ne pas réutiliser celui-ci tel quel en production.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kine}
+      POSTGRES_DB: ${POSTGRES_DB:-kine_maxillo}
+    ports:
+      # Lié à localhost uniquement : pas exposé au réseau.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:

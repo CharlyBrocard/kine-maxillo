@@ -1,0 +1,94 @@
+// Modèle de données — voir "Modèle de données (esquisse)" dans PROJECT.md.
+// Ce schéma est la fondation (étape 4 du plan) : pas encore d'API GraphQL
+// ni de tables NextAuth (prévues aux étapes suivantes).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+/// Grille hebdomadaire récurrente des horaires d'ouverture.
+model AvailabilityRule {
+  id        String    @id @default(cuid())
+  dayOfWeek DayOfWeek
+
+  /// Minutes depuis minuit (0–1439), ex. 510 = 08:30.
+  startTime Int
+  /// Minutes depuis minuit (0–1439), ex. 1140 = 19:00.
+  endTime   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dayOfWeek])
+}
+
+enum ExceptionType {
+  CLOSED
+  ADDED
+}
+
+/// Fermeture ou créneau ajouté ponctuel, en plus de la grille récurrente.
+model AvailabilityException {
+  id     String        @id @default(cuid())
+  date   DateTime      @db.Date
+  type   ExceptionType
+  reason String?
+
+  /// Bornes optionnelles : absentes = toute la journée. Minutes depuis minuit.
+  startTime Int?
+  endTime   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+model Appointment {
+  id String @id @default(cuid())
+
+  slotStart DateTime
+  slotEnd   DateTime
+
+  patientName  String
+  patientPhone String
+  patientEmail String
+  /// Motif de consultation — donnée potentiellement sensible (voir PROJECT.md) :
+  /// à minimiser et purger après le délai retenu, pas seulement soft-delete.
+  reason       String?
+
+  status AppointmentStatus @default(PENDING)
+
+  confirmationToken String   @unique
+  cancellationToken String   @unique
+  /// Expiration du statut PENDING (créneau libéré automatiquement si non confirmé).
+  expiresAt         DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slotStart])
+  @@index([status])
+}
