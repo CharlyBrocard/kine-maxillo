@@ -1,5 +1,5 @@
 import { BookingWizard } from "@/components/booking/BookingWizard";
-import type { MotifId } from "@/lib/mock-availability";
+import type { MotifId } from "@/lib/motifs";
 
 export default async function RendezVousPage({
   searchParams,
