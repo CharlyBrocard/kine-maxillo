@@ -9,6 +9,16 @@ import {
 } from "@/lib/slots";
 import { generateToken } from "@/lib/tokens";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
+import type { GraphQLContext } from "@/graphql/context";
+
+/** Mono-compte praticienne (voir PROJECT.md) — utilisé par les opérations admin. */
+function requireSession(context: GraphQLContext): void {
+  if (!context.session) {
+    throw new GraphQLError("Authentification requise.", {
+      extensions: { code: "UNAUTHENTICATED" },
+    });
+  }
+}
 
 export const resolvers = {
   DateTime: DateTimeResolver,
@@ -19,12 +29,27 @@ export const resolvers = {
       return computeAvailableSlots(from, to);
     },
 
-    appointments: async (_: unknown, { from, to }: { from: Date; to: Date }) => {
+    appointments: async (
+      _: unknown,
+      { from, to }: { from: Date; to: Date },
+      context: GraphQLContext
+    ) => {
+      requireSession(context);
       await expireStalePendingAppointments();
       return prisma.appointment.findMany({
         where: { slotStart: { lt: to }, slotEnd: { gt: from } },
         orderBy: { slotStart: "asc" },
       });
+    },
+
+    availabilityRules: async (_: unknown, __: unknown, context: GraphQLContext) => {
+      requireSession(context);
+      return prisma.availabilityRule.findMany({ orderBy: { startTime: "asc" } });
+    },
+
+    availabilityExceptions: async (_: unknown, __: unknown, context: GraphQLContext) => {
+      requireSession(context);
+      return prisma.availabilityException.findMany({ orderBy: { date: "asc" } });
     },
   },
 
@@ -123,10 +148,21 @@ export const resolvers = {
       _: unknown,
       {
         input,
-      }: { input: { dayOfWeek: DayOfWeek; startTime: number; endTime: number } }
+      }: { input: { dayOfWeek: DayOfWeek; startTime: number; endTime: number } },
+      context: GraphQLContext
     ) => {
-      // TODO(étape suivante) : protéger par NextAuth (mono-compte praticienne).
+      requireSession(context);
       return prisma.availabilityRule.create({ data: input });
+    },
+
+    deleteAvailabilityRule: async (
+      _: unknown,
+      { id }: { id: string },
+      context: GraphQLContext
+    ) => {
+      requireSession(context);
+      await prisma.availabilityRule.delete({ where: { id } });
+      return true;
     },
 
     addAvailabilityException: async (
@@ -141,14 +177,29 @@ export const resolvers = {
           startTime?: number;
           endTime?: number;
         };
-      }
+      },
+      context: GraphQLContext
     ) => {
-      // TODO(étape suivante) : protéger par NextAuth (mono-compte praticienne).
+      requireSession(context);
       return prisma.availabilityException.create({ data: input });
     },
 
-    cancelAppointmentAsAdmin: async (_: unknown, { id }: { id: string }) => {
-      // TODO(étape suivante) : protéger par NextAuth (mono-compte praticienne).
+    deleteAvailabilityException: async (
+      _: unknown,
+      { id }: { id: string },
+      context: GraphQLContext
+    ) => {
+      requireSession(context);
+      await prisma.availabilityException.delete({ where: { id } });
+      return true;
+    },
+
+    cancelAppointmentAsAdmin: async (
+      _: unknown,
+      { id }: { id: string },
+      context: GraphQLContext
+    ) => {
+      requireSession(context);
       return prisma.appointment.update({
         where: { id },
         data: { status: "CANCELLED" },

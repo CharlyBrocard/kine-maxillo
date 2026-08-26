@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
 
 const links = [
@@ -13,7 +14,6 @@ const links = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
 
   return (
     <aside className="flex w-[240px] shrink-0 flex-col gap-6.5 bg-ink px-5 py-6.5 text-[#D6DDD9]">
@@ -47,15 +47,9 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-2.5">
-        <Link
-          href="/espace/agenda?nouveau=1"
-          className="rounded-[10px] bg-sauge px-3.5 py-3.5 text-center text-[15.5px] font-semibold text-ink"
-        >
-          + Ajouter un RDV
-        </Link>
         <button
           type="button"
-          onClick={() => router.push("/espace")}
+          onClick={() => signOut({ callbackUrl: "/espace" })}
           className="text-left text-sm text-[#8DA39B] hover:text-white"
         >
           Se déconnecter

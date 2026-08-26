@@ -66,7 +66,8 @@ export const typeDefs = /* GraphQL */ `
   car l'écran de confirmation, atteint uniquement via confirmationToken,
   affiche aussi l'action d'annulation — voir "Annulation en self-service"
   dans PROJECT.md. Ne pas ajouter ces tokens au type Appointment lui-même :
-  il est aussi renvoyé par la query \`appointments\`, pas encore protégée.
+  il est aussi renvoyé par la query \`appointments\` (authentifiée, mais
+  pas de raison d'exposer les tokens patients à la praticienne non plus).
   """
   type AppointmentPayload {
     appointment: Appointment!
@@ -110,8 +111,12 @@ export const typeDefs = /* GraphQL */ `
   type Query {
     availableSlots(from: DateTime!, to: DateTime!): [Slot!]!
 
-    "Non protégé pour l'instant — auth NextAuth prévue à l'étape suivante."
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     appointments(from: DateTime!, to: DateTime!): [Appointment!]!
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
+    availabilityRules: [AvailabilityRule!]!
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
+    availabilityExceptions: [AvailabilityException!]!
   }
 
   type Mutation {
@@ -119,11 +124,15 @@ export const typeDefs = /* GraphQL */ `
     confirmAppointment(token: String!): AppointmentPayload!
     cancelAppointment(token: String!): AppointmentPayload!
 
-    "Non protégé pour l'instant — auth NextAuth prévue à l'étape suivante."
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     setAvailabilityRule(input: AvailabilityRuleInput!): AvailabilityRule!
-    "Non protégé pour l'instant — auth NextAuth prévue à l'étape suivante."
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
+    deleteAvailabilityRule(id: ID!): Boolean!
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     addAvailabilityException(input: AvailabilityExceptionInput!): AvailabilityException!
-    "Non protégé pour l'instant — auth NextAuth prévue à l'étape suivante."
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
+    deleteAvailabilityException(id: ID!): Boolean!
+    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     cancelAppointmentAsAdmin(id: ID!): Appointment!
   }
 `;

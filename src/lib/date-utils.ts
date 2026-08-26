@@ -50,6 +50,13 @@ export function dayOfWeekOf(date: Date): (typeof DAY_OF_WEEK_BY_INDEX)[number] {
   return DAY_OF_WEEK_BY_INDEX[date.getUTCDay()];
 }
 
+/** Lundi (00:00 UTC) de la semaine calendaire contenant `date`. */
+export function mondayOfUTCWeek(date: Date): Date {
+  const day = date.getUTCDay(); // 0 = dimanche .. 6 = samedi
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  return addUTCDays(startOfUTCDay(date), diffToMonday);
+}
+
 /** Affichage HH:mm en UTC (cohérent avec le reste : UTC = heure du cabinet). */
 export function formatUTCTime(date: Date): string {
   return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
@@ -63,4 +70,17 @@ export function formatUTCDate(
   options: Intl.DateTimeFormatOptions
 ): string {
   return date.toLocaleDateString("fr-FR", { ...options, timeZone: "UTC" });
+}
+
+/** "HH:mm" -> minutes depuis minuit (ex. "09:30" -> 570). */
+export function minutesFromTimeInput(value: string): number {
+  const [h, m] = value.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** minutes depuis minuit -> "HH:mm" (ex. 570 -> "09:30"). */
+export function timeInputFromMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
