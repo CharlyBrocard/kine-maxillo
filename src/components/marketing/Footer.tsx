@@ -12,7 +12,7 @@ export function Footer() {
           <span className="text-[15px] leading-relaxed">
             {siteConfig.qualification}
             <br />
-            Rééducation oro-maxillo-faciale
+            Rééducation oro-maxillo-faciale · {siteConfig.zone}
           </span>
         </div>
         <div className="flex flex-col gap-2 text-[15px] leading-relaxed">

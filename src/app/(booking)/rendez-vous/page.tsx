@@ -1,16 +1,16 @@
 import { BookingWizard } from "@/components/booking/BookingWizard";
-import type { MotifId } from "@/lib/motifs";
+import type { CategoryId } from "@/lib/categories";
 
 export default async function RendezVousPage({
   searchParams,
 }: {
-  searchParams: Promise<{ motif?: string }>;
+  searchParams: Promise<{ category?: string }>;
 }) {
   const params = await searchParams;
-  const motifInitial =
-    params.motif === "pressotherapie" || params.motif === "fonctionnelle"
-      ? (params.motif as MotifId)
+  const categoryInitial =
+    params.category === "MAXILLO_FACIAL" || params.category === "PRESSOTHERAPIE"
+      ? (params.category as CategoryId)
       : undefined;
 
-  return <BookingWizard motifInitial={motifInitial} />;
+  return <BookingWizard categoryInitial={categoryInitial} />;
 }

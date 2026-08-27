@@ -1,6 +1,7 @@
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
+import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 
 export default function TarifsPage() {
   return (
@@ -37,7 +38,7 @@ export default function TarifsPage() {
                     {siteConfig.tarifPresso}
                   </span>
                   <span className="text-sm text-muted">
-                    la séance de {siteConfig.dureePresso}
+                    la séance de {SLOT_DURATION_MINUTES} min
                   </span>
                 </div>
               </div>
@@ -59,7 +60,7 @@ export default function TarifsPage() {
                   <span>Forfait 5 séances possible, à demander au cabinet</span>
                 </div>
               </div>
-              <ButtonLink href="/rendez-vous?motif=pressotherapie" className="mt-auto">
+              <ButtonLink href="/rendez-vous?category=PRESSOTHERAPIE" className="mt-auto">
                 Réserver une séance de pressothérapie
               </ButtonLink>
             </div>

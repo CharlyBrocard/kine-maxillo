@@ -4,6 +4,7 @@ import { Pill } from "@/components/ui/Pill";
 import { ButtonLink } from "@/components/ui/Button";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
 import { siteConfig } from "@/lib/site-config";
+import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 
 const axes = [
   {
@@ -24,7 +25,7 @@ const axes = [
     n: "03",
     tone: "terracotta" as const,
     title: "Drainage lymphatique",
-    text: `Pressothérapie par bottes : jambes lourdes, œdèmes, récupération. Séance de ${siteConfig.dureePresso}, ${siteConfig.tarifPresso}.`,
+    text: `Pressothérapie par bottes : jambes lourdes, œdèmes, récupération. Séance de ${SLOT_DURATION_MINUTES} min, ${siteConfig.tarifPresso}.`,
     href: "/tarifs",
   },
 ];
@@ -43,9 +44,9 @@ export default function AccueilPage() {
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-body">
               Prise en charge des douleurs de l&apos;ATM, des troubles de la
-              sphère oro-faciale, de la rééducation post-opératoire et du
-              drainage lymphatique. Un accompagnement calme, progressif,
-              adapté à chacun.
+              sphère oro-faciale et du drainage lymphatique, au cabinet de{" "}
+              {siteConfig.ville}, dans l&apos;{siteConfig.zone.toLowerCase()}.
+              Un accompagnement calme, progressif, adapté à chacun.
             </p>
             <div className="flex flex-wrap items-center gap-3.5">
               <ButtonLink href="/rendez-vous" size="lg">
@@ -56,7 +57,9 @@ export default function AccueilPage() {
               </ButtonLink>
             </div>
             <div className="flex flex-wrap gap-7 pt-1.5 text-[15px] text-muted">
-              <span>Cabinet accessible · {siteConfig.ville}</span>
+              <span>
+                Cabinet accessible · {siteConfig.ville}, {siteConfig.zone}
+              </span>
               <span>Conventionné secteur 1</span>
             </div>
           </div>
@@ -116,21 +119,21 @@ export default function AccueilPage() {
           <div className="flex flex-col gap-5">
             <span className="eyebrow">À propos</span>
             <h3 className="text-balance font-serif text-3xl leading-tight sm:text-4xl">
-              Douze ans de pratique, une spécialisation rare en
-              Auvergne-Rhône-Alpes.
+              Quatre ans de pratique, une spécialisation rare dans
+              l&apos;ouest lyonnais.
             </h3>
             <p className="max-w-xl text-[17.5px] leading-relaxed text-body">
               Diplômée d&apos;État, formée à la rééducation maxillo-faciale et
               à la thérapie manuelle, je travaille en lien étroit avec les
               chirurgiens maxillo-faciaux, orthodontistes et ORL de la
-              région. Chaque séance dure {siteConfig.dureeSeance}, en cabinet
-              individuel.
+              région. Chaque séance dure {SLOT_DURATION_MINUTES} min, en
+              cabinet individuel.
             </p>
             <div className="flex flex-wrap gap-4">
               {[
-                ["12 ans", "de pratique"],
-                [siteConfig.dureeSeance, "par séance"],
-                [siteConfig.ville, "métro Foch"],
+                ["4 ans", "de pratique"],
+                [`${SLOT_DURATION_MINUTES} min`, "par séance"],
+                [siteConfig.ville, siteConfig.zone],
               ].map(([big, small]) => (
                 <div
                   key={big}
@@ -150,8 +153,8 @@ export default function AccueilPage() {
           Réservez votre créneau en deux minutes
         </h3>
         <p className="max-w-lg text-lg leading-relaxed text-body">
-          Sans création de compte. Vous choisissez l&apos;horaire, vous
-          confirmez par email, c&apos;est tout.
+          Aucun compte à créer : choisissez un créneau, confirmez par email,
+          votre rendez-vous est pris.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3.5">
           <ButtonLink href="/rendez-vous" size="lg">

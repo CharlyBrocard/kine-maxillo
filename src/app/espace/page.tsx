@@ -63,7 +63,7 @@ export default function EspaceLoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="lea@cabinet-marchand.fr"
+              placeholder="johanna@kine-maxillo-lyon.com"
               className="h-[56px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5 text-[17px] text-ink focus:border-accent focus:outline-none"
             />
           </label>

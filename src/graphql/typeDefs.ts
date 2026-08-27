@@ -1,25 +1,13 @@
-/**
- * Reprend le schéma esquissé dans PROJECT.md, avec un ajustement : la
- * lecture `appointments(from, to)` est placée sous Query (c'est une
- * lecture, pas une mutation) au lieu de Mutation où l'esquisse l'avait
- * listée à côté des mutations "authentifiées (kiné)".
- */
 export const typeDefs = /* GraphQL */ `
   scalar DateTime
 
-  enum DayOfWeek {
-    MONDAY
-    TUESDAY
-    WEDNESDAY
-    THURSDAY
-    FRIDAY
-    SATURDAY
-    SUNDAY
-  }
-
-  enum ExceptionType {
-    CLOSED
-    ADDED
+  """
+  Deux catégories de RDV, chacune avec sa propre disponibilité (voir
+  "Décisions produit" dans PROJECT.md).
+  """
+  enum Category {
+    MAXILLO_FACIAL
+    PRESSOTHERAPIE
   }
 
   enum AppointmentStatus {
@@ -34,26 +22,23 @@ export const typeDefs = /* GraphQL */ `
     end: DateTime!
   }
 
-  type AvailabilityRule {
+  """
+  Créneau ouvert manuellement par la praticienne, sans récurrence — voir
+  "Décisions produit" dans PROJECT.md.
+  """
+  type AvailableSlot {
     id: ID!
-    dayOfWeek: DayOfWeek!
-    startTime: Int!
-    endTime: Int!
-  }
-
-  type AvailabilityException {
-    id: ID!
-    date: DateTime!
-    type: ExceptionType!
-    reason: String
-    startTime: Int
-    endTime: Int
+    start: DateTime!
+    category: Category!
+    "true si un RDV pending (non expiré) ou confirmed couvre déjà ce créneau."
+    booked: Boolean!
   }
 
   type Appointment {
     id: ID!
     slotStart: DateTime!
     slotEnd: DateTime!
+    category: Category!
     patientName: String!
     patientPhone: String!
     patientEmail: String!
@@ -76,9 +61,9 @@ export const typeDefs = /* GraphQL */ `
 
   """
   confirmationToken / cancellationToken ne sont renvoyés qu'ici, à la
-  création. Tant que l'envoi d'email (Brevo) n'est pas branché — voir
-  étape 7 du PROJECT.md — ils servent aussi à tester confirmAppointment
-  / cancelAppointment sans email réel.
+  création. Tant que l'envoi d'email (Brevo) n'est pas branché, ils
+  servent aussi à tester confirmAppointment / cancelAppointment sans
+  email réel.
   """
   type RequestAppointmentPayload {
     appointment: Appointment!
@@ -88,35 +73,25 @@ export const typeDefs = /* GraphQL */ `
 
   input RequestAppointmentInput {
     slotStart: DateTime!
+    category: Category!
     patientName: String!
     patientPhone: String!
     patientEmail: String!
     reason: String
   }
 
-  input AvailabilityRuleInput {
-    dayOfWeek: DayOfWeek!
-    startTime: Int!
-    endTime: Int!
-  }
-
-  input AvailabilityExceptionInput {
-    date: DateTime!
-    type: ExceptionType!
-    reason: String
-    startTime: Int
-    endTime: Int
+  input AddAvailableSlotInput {
+    start: DateTime!
+    category: Category!
   }
 
   type Query {
-    availableSlots(from: DateTime!, to: DateTime!): [Slot!]!
+    availableSlots(category: Category!, from: DateTime!, to: DateTime!): [Slot!]!
 
     "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     appointments(from: DateTime!, to: DateTime!): [Appointment!]!
     "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
-    availabilityRules: [AvailabilityRule!]!
-    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
-    availabilityExceptions: [AvailabilityException!]!
+    availableSlotEntries(from: DateTime!, to: DateTime!): [AvailableSlot!]!
   }
 
   type Mutation {
@@ -125,13 +100,9 @@ export const typeDefs = /* GraphQL */ `
     cancelAppointment(token: String!): AppointmentPayload!
 
     "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
-    setAvailabilityRule(input: AvailabilityRuleInput!): AvailabilityRule!
+    addAvailableSlot(input: AddAvailableSlotInput!): AvailableSlot!
     "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
-    deleteAvailabilityRule(id: ID!): Boolean!
-    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
-    addAvailabilityException(input: AvailabilityExceptionInput!): AvailabilityException!
-    "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
-    deleteAvailabilityException(id: ID!): Boolean!
+    deleteAvailableSlot(id: ID!): Boolean!
     "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     cancelAppointmentAsAdmin(id: ID!): Appointment!
   }

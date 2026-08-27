@@ -8,8 +8,6 @@ import { siteConfig } from "@/lib/site-config";
 const links = [
   { href: "/espace/agenda", label: "Agenda" },
   { href: "/espace/disponibilites", label: "Disponibilités" },
-  { href: "/espace/patients", label: "Patients" },
-  { href: "/espace/reglages", label: "Réglages" },
 ];
 
 export function Sidebar() {

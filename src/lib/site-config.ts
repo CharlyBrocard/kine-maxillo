@@ -1,27 +1,24 @@
 /**
- * Données du cabinet — placeholders repris de la maquette design.
- * À remplacer par les vraies informations avant mise en production
- * (voir "Infos encore à récupérer" dans PROJECT.md : nom, adresse,
- * RPPS/ADELI, SIRET, tarif pressothérapie, photos).
+ * Données du cabinet. Nom, adresse et téléphone sont réels ; le reste
+ * (email, RPPS/ADELI, SIRET, tarif pressothérapie, photos) reste
+ * placeholder — voir "Infos encore à récupérer" dans PROJECT.md.
  */
 export const siteConfig = {
-  praticienne: "Léa Marchand",
+  praticienne: "Johanna Rouzier",
   qualification: "Masseur-kinésithérapeute D.E.",
-  ville: "Lyon 6e",
+  ville: "Millery",
 
-  adresseLigne1: "18 rue Vendôme",
-  adresseLigne2: "69006 Lyon",
-  metro: "Métro A — Foch",
+  adresseLigne1: "6 Av. Jacques Nemos",
+  adresseLigne2: "69390 Millery",
+  zone: "Ouest lyonnais",
   accesPmr: "Rez-de-chaussée, accès PMR",
 
-  telephone: "04 78 00 00 00",
-  telephoneHref: "tel:+33478000000",
-  email: "contact@cabinet-marchand.fr",
+  telephone: "04 72 30 74 85",
+  telephoneHref: "tel:+33472307485",
+  // Placeholder — domaine réservé (kine-maxillo-lyon.com), adresse à confirmer.
+  email: "contact@kine-maxillo-lyon.com",
 
-  horaires: [
-    { jours: "Lundi – Vendredi", plage: "8h30 – 19h00" },
-    { jours: "Samedi", plage: "9h00 – 12h00" },
-  ],
+  horaires: [{ jours: "Lundi – Vendredi", plage: "8h30 – 18h00" }],
 
   rpps: "10100200300",
   adeli: "699912345",
@@ -29,8 +26,6 @@ export const siteConfig = {
   assuranceRcp: "MACSF",
 
   tarifPresso: "45 €",
-  dureeSeance: "40 min",
-  dureePresso: "30 min",
 } as const;
 
 export const nav = [

@@ -1,119 +1,66 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { DayOfWeek, ExceptionType } from "@prisma/client";
-import {
-  formatUTCDate,
-  minutesFromTimeInput,
-  timeInputFromMinutes,
-} from "@/lib/date-utils";
+import { categories, categoryLabel, type CategoryId } from "@/lib/categories";
+import { formatUTCDate, formatUTCTime, dateFromInputs } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
 
-type ApiRule = { id: string; dayOfWeek: DayOfWeek; startTime: number; endTime: number };
-type ApiException = {
+type ApiSlot = {
   id: string;
-  date: string;
-  type: ExceptionType;
-  reason: string | null;
-  startTime: number | null;
-  endTime: number | null;
+  start: string;
+  category: CategoryId;
+  booked: boolean;
 };
 
-const JOURS: { key: DayOfWeek; label: string }[] = [
-  { key: "MONDAY", label: "Lundi" },
-  { key: "TUESDAY", label: "Mardi" },
-  { key: "WEDNESDAY", label: "Mercredi" },
-  { key: "THURSDAY", label: "Jeudi" },
-  { key: "FRIDAY", label: "Vendredi" },
-  { key: "SATURDAY", label: "Samedi" },
-  { key: "SUNDAY", label: "Dimanche" },
-];
-
-const DATA_QUERY = /* GraphQL */ `
-  query DisponibilitesData {
-    availabilityRules {
+const SLOTS_QUERY = /* GraphQL */ `
+  query AvailableSlotEntries($from: DateTime!, $to: DateTime!) {
+    availableSlotEntries(from: $from, to: $to) {
       id
-      dayOfWeek
-      startTime
-      endTime
-    }
-    availabilityExceptions {
-      id
-      date
-      type
-      reason
-      startTime
-      endTime
+      start
+      category
+      booked
     }
   }
 `;
 
-const SET_RULE_MUTATION = /* GraphQL */ `
-  mutation SetAvailabilityRule($input: AvailabilityRuleInput!) {
-    setAvailabilityRule(input: $input) {
+const ADD_SLOT_MUTATION = /* GraphQL */ `
+  mutation AddAvailableSlot($input: AddAvailableSlotInput!) {
+    addAvailableSlot(input: $input) {
       id
     }
   }
 `;
 
-const DELETE_RULE_MUTATION = /* GraphQL */ `
-  mutation DeleteAvailabilityRule($id: ID!) {
-    deleteAvailabilityRule(id: $id)
+const DELETE_SLOT_MUTATION = /* GraphQL */ `
+  mutation DeleteAvailableSlot($id: ID!) {
+    deleteAvailableSlot(id: $id)
   }
 `;
 
-const ADD_EXCEPTION_MUTATION = /* GraphQL */ `
-  mutation AddAvailabilityException($input: AvailabilityExceptionInput!) {
-    addAvailabilityException(input: $input) {
-      id
-    }
-  }
-`;
-
-const DELETE_EXCEPTION_MUTATION = /* GraphQL */ `
-  mutation DeleteAvailabilityException($id: ID!) {
-    deleteAvailabilityException(id: $id)
-  }
-`;
-
-function formatExceptionLabel(exc: ApiException): string {
-  const date = formatUTCDate(new Date(exc.date), {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  if (exc.startTime == null || exc.endTime == null) {
-    return `${date} — toute la journée`;
-  }
-  return `${date} — ${timeInputFromMinutes(exc.startTime)} à ${timeInputFromMinutes(exc.endTime)}`;
-}
+// Fenêtre large : pas de pagination pour l'instant, la liste reste courte
+// tant que les créneaux sont ajoutés un par un.
+const WINDOW_DAYS = 90;
 
 export function AvailabilityBoard() {
-  const [rules, setRules] = useState<ApiRule[]>([]);
-  const [exceptions, setExceptions] = useState<ApiException[]>([]);
+  const [slots, setSlots] = useState<ApiSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [addingFor, setAddingFor] = useState<DayOfWeek | null>(null);
-  const [newStart, setNewStart] = useState("09:00");
-  const [newEnd, setNewEnd] = useState("12:00");
-  const [plageError, setPlageError] = useState<string | null>(null);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("09:00");
+  const [category, setCategory] = useState<CategoryId>(categories[0].id);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [excDate, setExcDate] = useState("");
-  const [excType, setExcType] = useState<"fermeture" | "ajout">("fermeture");
-  const [excAllDay, setExcAllDay] = useState(true);
-  const [excStart, setExcStart] = useState("08:30");
-  const [excEnd, setExcEnd] = useState("19:00");
-  const [excReason, setExcReason] = useState("");
-  const [excFormError, setExcFormError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const refetch = useCallback(() => {
-    return gqlRequest<{ availabilityRules: ApiRule[]; availabilityExceptions: ApiException[] }>(
-      DATA_QUERY
-    ).then((data) => {
-      setRules(data.availabilityRules);
-      setExceptions(data.availabilityExceptions);
-    });
+    const from = new Date();
+    const to = new Date(from.getTime() + WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    return gqlRequest<{ availableSlotEntries: ApiSlot[] }>(SLOTS_QUERY, {
+      from: from.toISOString(),
+      to: to.toISOString(),
+    }).then((data) => setSlots(data.availableSlotEntries));
   }, []);
 
   useEffect(() => {
@@ -130,7 +77,7 @@ export function AvailabilityBoard() {
         setError(
           e instanceof GraphQLRequestError
             ? e.message
-            : "Impossible de charger les disponibilités."
+            : "Impossible de charger les créneaux."
         );
       })
       .finally(() => {
@@ -141,78 +88,50 @@ export function AvailabilityBoard() {
     };
   }, [refetch]);
 
-  async function submitPlage(day: DayOfWeek) {
-    setPlageError(null);
-    const startTime = minutesFromTimeInput(newStart);
-    const endTime = minutesFromTimeInput(newEnd);
-    if (startTime >= endTime) {
-      setPlageError("L'heure de fin doit être après l'heure de début.");
-      return;
-    }
-    try {
-      await gqlRequest(SET_RULE_MUTATION, {
-        input: { dayOfWeek: day, startTime, endTime },
-      });
-      setAddingFor(null);
-      await refetch();
-    } catch (e) {
-      setPlageError(
-        e instanceof GraphQLRequestError ? e.message : "Impossible d'ajouter cette plage."
-      );
-    }
-  }
-
-  async function removePlage(id: string) {
-    try {
-      await gqlRequest(DELETE_RULE_MUTATION, { id });
-      await refetch();
-    } catch {
-      setError("Impossible de supprimer cette plage.");
-    }
-  }
-
-  async function removeException(id: string) {
-    try {
-      await gqlRequest(DELETE_EXCEPTION_MUTATION, { id });
-      await refetch();
-    } catch {
-      setError("Impossible de supprimer cette exception.");
-    }
-  }
-
-  async function submitException(e: React.FormEvent) {
+  async function submitSlot(e: React.FormEvent) {
     e.preventDefault();
-    setExcFormError(null);
-    if (!excDate) {
-      setExcFormError("La date est obligatoire.");
+    setFormError(null);
+    if (!date) {
+      setFormError("La date est obligatoire.");
       return;
     }
-    const startTime = excAllDay ? undefined : minutesFromTimeInput(excStart);
-    const endTime = excAllDay ? undefined : minutesFromTimeInput(excEnd);
-    if (!excAllDay && startTime! >= endTime!) {
-      setExcFormError("L'heure de fin doit être après l'heure de début.");
+    const start = dateFromInputs(date, time);
+    if (start.getTime() < Date.now()) {
+      setFormError("Le créneau doit être dans le futur.");
       return;
     }
+    setSubmitting(true);
     try {
-      await gqlRequest(ADD_EXCEPTION_MUTATION, {
-        input: {
-          date: `${excDate}T00:00:00.000Z`,
-          type: excType === "fermeture" ? "CLOSED" : "ADDED",
-          reason: excReason.trim() || undefined,
-          startTime,
-          endTime,
-        },
+      await gqlRequest(ADD_SLOT_MUTATION, {
+        input: { start: start.toISOString(), category },
       });
-      setExcDate("");
-      setExcReason("");
-      setExcAllDay(true);
+      setDate("");
       await refetch();
     } catch (e) {
-      setExcFormError(
+      setFormError(
         e instanceof GraphQLRequestError
           ? e.message
-          : "Impossible d'ajouter cette exception."
+          : "Impossible d'ajouter ce créneau."
       );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function removeSlot(id: string) {
+    setDeletingId(id);
+    setError(null);
+    try {
+      await gqlRequest(DELETE_SLOT_MUTATION, { id });
+      await refetch();
+    } catch (e) {
+      setError(
+        e instanceof GraphQLRequestError
+          ? e.message
+          : "Impossible de supprimer ce créneau."
+      );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -229,262 +148,126 @@ export function AvailabilityBoard() {
         </div>
       )}
 
-      <div className="grid flex-1 grid-cols-1 gap-8 p-6 lg:grid-cols-[1.35fr_1fr] lg:p-8">
+      <div className="grid flex-1 grid-cols-1 gap-8 p-6 lg:grid-cols-[420px_1fr] lg:p-8">
         <div className="flex flex-col gap-4.5">
           <div className="flex flex-col gap-1.5">
-            <h2 className="font-serif text-[23px]">Semaine type récurrente</h2>
+            <h2 className="font-serif text-[23px]">Ouvrir un créneau</h2>
             <p className="text-base leading-relaxed text-body">
-              Ces plages génèrent automatiquement les créneaux proposés aux
-              patients, par pas de 40 minutes.
+              Pas de récurrence : chaque créneau est ajouté au coup par coup,
+              par catégorie.
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <div className="grid grid-cols-[130px_1fr] bg-cream px-5 py-3.5 font-mono text-[11px] uppercase tracking-[0.12em] text-faint">
-              <span>Jour</span>
-              <span>Plages horaires</span>
-            </div>
-            {JOURS.map((jour) => {
-              const dayRules = rules
-                .filter((r) => r.dayOfWeek === jour.key)
-                .sort((a, b) => a.startTime - b.startTime);
-              const isAdding = addingFor === jour.key;
-
-              return (
-                <div
-                  key={jour.key}
-                  className={
-                    "grid grid-cols-[130px_1fr] items-start border-t border-border-soft px-5 py-4 " +
-                    (dayRules.length === 0 && !isAdding ? "bg-[#F9F8F3]" : "")
-                  }
-                >
-                  <span
-                    className={
-                      "pt-3 text-[16.5px] font-semibold " +
-                      (dayRules.length === 0 ? "text-faint" : "")
-                    }
-                  >
-                    {jour.label}
-                  </span>
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {dayRules.map((r) => (
-                        <span
-                          key={r.id}
-                          className="flex items-center gap-2 rounded-lg border-[1.5px] border-border-strong bg-linen px-3.5 py-2 text-[15px]"
-                        >
-                          {timeInputFromMinutes(r.startTime)} – {timeInputFromMinutes(r.endTime)}
-                          <button
-                            type="button"
-                            onClick={() => removePlage(r.id)}
-                            className="text-faint hover:text-danger"
-                            aria-label="Supprimer cette plage"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                      {dayRules.length === 0 && !isAdding && (
-                        <span className="text-[15.5px] text-faint">Fermé</span>
-                      )}
-                      {!isAdding && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAddingFor(jour.key);
-                            setPlageError(null);
-                          }}
-                          className="rounded-lg border-[1.5px] border-dashed border-border-input px-3 py-2 text-[15px] text-accent"
-                        >
-                          + plage
-                        </button>
-                      )}
-                    </div>
-                    {isAdding && (
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <input
-                          type="time"
-                          value={newStart}
-                          onChange={(e) => setNewStart(e.target.value)}
-                          className="h-10 rounded-lg border-[1.5px] border-border-strong px-2.5 text-[15px]"
-                        />
-                        <span className="text-body">à</span>
-                        <input
-                          type="time"
-                          value={newEnd}
-                          onChange={(e) => setNewEnd(e.target.value)}
-                          className="h-10 rounded-lg border-[1.5px] border-border-strong px-2.5 text-[15px]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => submitPlage(jour.key)}
-                          className="rounded-lg bg-accent px-3.5 py-2 text-[14.5px] font-semibold text-white"
-                        >
-                          Ajouter
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAddingFor(null);
-                            setPlageError(null);
-                          }}
-                          className="text-[14.5px] text-muted underline"
-                        >
-                          Annuler
-                        </button>
-                        {plageError && (
-                          <span className="w-full text-[13.5px] text-danger">{plageError}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-wrap gap-6 rounded-xl bg-sauge px-6 py-5">
-            <div className="flex flex-col gap-1">
-              <span className="text-sm text-sauge-ink">Durée d&apos;une séance</span>
-              <span className="text-[17px] font-semibold">40 minutes</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm text-sauge-ink">Pressothérapie</span>
-              <span className="text-[17px] font-semibold">30 minutes</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm text-sauge-ink">Délai mini de réservation</span>
-              <span className="text-[17px] font-semibold">12 heures</span>
-            </div>
-          </div>
+          <form
+            onSubmit={submitSlot}
+            className="flex flex-col gap-3.5 rounded-2xl border border-border bg-white p-6"
+          >
+            {formError && (
+              <div className="rounded-lg bg-terracotta-soft px-4 py-3 text-[14.5px] text-terracotta-ink">
+                {formError}
+              </div>
+            )}
+            <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
+              Date
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4 text-[16.5px] focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
+              Heure
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4 text-[16.5px] focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
+              Catégorie
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as CategoryId)}
+                className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4 text-[16.5px] focus:border-accent focus:outline-none"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-[10px] bg-accent py-3.5 text-[16px] font-semibold text-white disabled:opacity-50"
+            >
+              {submitting ? "Ajout…" : "Ajouter le créneau"}
+            </button>
+          </form>
         </div>
 
         <div className="flex flex-col gap-4.5">
           <div className="flex flex-col gap-1.5">
-            <h2 className="font-serif text-[23px]">Exceptions ponctuelles</h2>
+            <h2 className="font-serif text-[23px]">Créneaux ouverts</h2>
             <p className="text-base leading-relaxed text-body">
-              Une fermeture exceptionnelle ou un créneau ouvert en plus, sans
-              toucher à la semaine type.
+              Les créneaux réservés sont marqués comme tels — annulez le RDV
+              depuis l&apos;agenda pour les libérer.
             </p>
           </div>
 
           <div className="flex flex-col rounded-2xl border border-border">
-            {exceptions.map((exc) => (
-              <div
-                key={exc.id}
-                className="flex items-center gap-3.5 border-b border-border-soft p-4 last:border-b-0"
-              >
-                <span
-                  className={
-                    "h-10 w-2 shrink-0 rounded-full " +
-                    (exc.type === "CLOSED" ? "bg-danger" : "bg-accent")
-                  }
-                />
-                <div className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-[16.5px] font-semibold">
-                    {formatExceptionLabel(exc)}
-                  </span>
-                  <span className="text-[15px] text-body">
-                    {exc.type === "CLOSED" ? "Fermeture" : "Créneau ajouté"}
-                    {exc.reason ? ` · ${exc.reason}` : ""}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeException(exc.id)}
-                  className="text-[15px] text-muted underline"
+            {slots.map((slot) => {
+              const start = new Date(slot.start);
+              return (
+                <div
+                  key={slot.id}
+                  className="flex items-center gap-3.5 border-b border-border-soft p-4 last:border-b-0"
                 >
-                  Supprimer
-                </button>
-              </div>
-            ))}
-            {exceptions.length === 0 && (
+                  <span
+                    className={
+                      "h-10 w-2 shrink-0 rounded-full " +
+                      (slot.booked ? "bg-border-strong" : "bg-accent")
+                    }
+                  />
+                  <div className="flex flex-1 flex-col gap-0.5">
+                    <span className="text-[16.5px] font-semibold">
+                      {formatUTCDate(start, {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })}{" "}
+                      · {formatUTCTime(start)}
+                    </span>
+                    <span className="text-[15px] text-body">
+                      {categoryLabel(slot.category)}
+                    </span>
+                  </div>
+                  {slot.booked ? (
+                    <span className="rounded-full bg-sable px-3.5 py-1.5 text-[13.5px] font-semibold text-muted">
+                      Réservé
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(slot.id)}
+                      disabled={deletingId === slot.id}
+                      className="text-[15px] text-muted underline disabled:opacity-50"
+                    >
+                      {deletingId === slot.id ? "Suppression…" : "Supprimer"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {slots.length === 0 && !loading && (
               <div className="p-6 text-center text-[15px] text-faint">
-                Aucune exception
+                Aucun créneau ouvert pour l&apos;instant
               </div>
             )}
           </div>
-
-          <form
-            onSubmit={submitException}
-            className="flex flex-col gap-3.5 rounded-2xl border-[1.5px] border-dashed border-border-strong bg-cream p-5.5"
-          >
-            <span className="eyebrow">Nouvelle exception</span>
-            {excFormError && (
-              <div className="rounded-lg bg-terracotta-soft px-4 py-3 text-[14.5px] text-terracotta-ink">
-                {excFormError}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
-                Date
-                <input
-                  type="date"
-                  value={excDate}
-                  onChange={(e) => setExcDate(e.target.value)}
-                  className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-white px-4 text-[16.5px] focus:border-accent focus:outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
-                Type
-                <select
-                  value={excType}
-                  onChange={(e) => setExcType(e.target.value as "fermeture" | "ajout")}
-                  className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-white px-4 text-[16.5px] focus:border-accent focus:outline-none"
-                >
-                  <option value="fermeture">Fermeture</option>
-                  <option value="ajout">Créneau ajouté</option>
-                </select>
-              </label>
-              <label className="col-span-2 flex items-center gap-2.5 text-[14.5px] text-body">
-                <input
-                  type="checkbox"
-                  checked={excAllDay}
-                  onChange={(e) => setExcAllDay(e.target.checked)}
-                  className="h-[20px] w-[20px] accent-accent"
-                />
-                Toute la journée
-              </label>
-              {!excAllDay && (
-                <>
-                  <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
-                    De
-                    <input
-                      type="time"
-                      value={excStart}
-                      onChange={(e) => setExcStart(e.target.value)}
-                      className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-white px-4 text-[16.5px] focus:border-accent focus:outline-none"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5 text-[14.5px] text-body">
-                    À
-                    <input
-                      type="time"
-                      value={excEnd}
-                      onChange={(e) => setExcEnd(e.target.value)}
-                      className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-white px-4 text-[16.5px] focus:border-accent focus:outline-none"
-                    />
-                  </label>
-                </>
-              )}
-              <label className="col-span-2 flex flex-col gap-1.5 text-[14.5px] text-body">
-                Motif <span className="text-faint">(optionnel)</span>
-                <input
-                  type="text"
-                  value={excReason}
-                  onChange={(e) => setExcReason(e.target.value)}
-                  placeholder="Ex. : formation ATM"
-                  className="h-[52px] rounded-[10px] border-[1.5px] border-border-strong bg-white px-4 text-[16.5px] focus:border-accent focus:outline-none"
-                />
-              </label>
-            </div>
-            <button
-              type="submit"
-              className="rounded-[10px] bg-ink py-3.5 text-[16px] font-semibold text-white"
-            >
-              Ajouter l&apos;exception
-            </button>
-          </form>
         </div>
       </div>
     </>

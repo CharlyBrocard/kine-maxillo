@@ -23,9 +23,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${siteConfig.praticienne} — Kinésithérapie oro-maxillo-faciale à ${siteConfig.ville}`,
-  description:
-    "Rééducation oro-maxillo-faciale, rééducation fonctionnelle et drainage lymphatique par pressothérapie. Cabinet à Lyon 6e.",
+  title: `${siteConfig.praticienne} — Kinésithérapie maxillo-faciale à ${siteConfig.ville}`,
+  description: `Rééducation oro-maxillo-faciale, ATM et drainage lymphatique par pressothérapie. Cabinet à ${siteConfig.ville}, ${siteConfig.zone}.`,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

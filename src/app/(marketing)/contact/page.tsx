@@ -39,7 +39,7 @@ export default function ContactPage() {
                   {siteConfig.adresseLigne2}
                 </span>
                 <span className="text-base text-muted">
-                  {siteConfig.metro} · {siteConfig.accesPmr}
+                  {siteConfig.zone} · {siteConfig.accesPmr}
                 </span>
               </InfoBlock>
 

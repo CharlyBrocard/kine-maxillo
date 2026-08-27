@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Stepper } from "@/components/booking/Stepper";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
-import { motifs, type MotifId } from "@/lib/motifs";
+import { categories, categoryLabel, type CategoryId } from "@/lib/categories";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 import {
   addUTCDays,
@@ -20,8 +20,8 @@ type Step = 1 | 2 | 3;
 type ApiSlot = { start: string; end: string };
 
 const AVAILABLE_SLOTS_QUERY = /* GraphQL */ `
-  query AvailableSlots($from: DateTime!, $to: DateTime!) {
-    availableSlots(from: $from, to: $to) {
+  query AvailableSlots($category: Category!, $from: DateTime!, $to: DateTime!) {
+    availableSlots(category: $category, from: $from, to: $to) {
       start
       end
     }
@@ -41,10 +41,10 @@ const REQUEST_APPOINTMENT_MUTATION = /* GraphQL */ `
   }
 `;
 
-export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
+export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryId }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
-  const [motifId, setMotifId] = useState<MotifId>(motifInitial ?? "atm");
+  const [category, setCategory] = useState<CategoryId | null>(categoryInitial ?? null);
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [apiSlots, setApiSlots] = useState<ApiSlot[]>([]);
@@ -62,8 +62,6 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
   const [resent, setResent] = useState(false);
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
 
-  const motif = motifs.find((m) => m.id === motifId)!;
-
   const weekStart = useMemo(
     () => addUTCDays(startOfUTCDay(new Date()), weekOffset * 7),
     [weekOffset]
@@ -74,7 +72,7 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
   );
 
   useEffect(() => {
-    if (step !== 1) return;
+    if (step !== 1 || !category) return;
     let cancelled = false;
 
     const from = weekOffset === 0 ? new Date() : weekStart;
@@ -88,6 +86,7 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
       })
       .then(() =>
         gqlRequest<{ availableSlots: ApiSlot[] }>(AVAILABLE_SLOTS_QUERY, {
+          category,
           from: from.toISOString(),
           to: to.toISOString(),
         })
@@ -111,7 +110,7 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
     return () => {
       cancelled = true;
     };
-  }, [step, weekOffset, weekStart]);
+  }, [step, category, weekOffset, weekStart]);
 
   const slotsByDay = useMemo(() => {
     const map = new Map<number, ApiSlot[]>();
@@ -134,17 +133,19 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
 
   async function submitRequest(e: React.FormEvent) {
     e.preventDefault();
-    if (!consent || !selectedSlot) return;
+    if (!consent || !selectedSlot || !category) return;
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      const reason = message.trim() ? `${motif.label} — ${message.trim()}` : motif.label;
+      const label = categoryLabel(category);
+      const reason = message.trim() ? `${label} — ${message.trim()}` : label;
       const data = await gqlRequest<{
         requestAppointment: { confirmationToken: string };
       }>(REQUEST_APPOINTMENT_MUTATION, {
         input: {
           slotStart: selectedSlot.start,
+          category,
           patientName: nom,
           patientPhone: telephone,
           patientEmail: email,
@@ -170,11 +171,41 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
     setStep(1);
   }
 
+  function changeCategory() {
+    setCategory(null);
+    setSelectedSlot(null);
+    setApiSlots([]);
+    setWeekOffset(0);
+  }
+
   return (
     <div className="flex w-full max-w-[1000px] flex-col items-center gap-8">
       <Stepper current={step} />
 
-      {step === 1 && (
+      {step === 1 && !category && (
+        <div className="flex w-full max-w-xl flex-col gap-6">
+          <div className="flex flex-col gap-1.5 text-center">
+            <h1 className="font-serif text-3xl">Quel type de rendez-vous ?</h1>
+            <p className="text-base text-body">
+              Les créneaux disponibles dépendent de la catégorie choisie.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCategory(c.id)}
+                className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-border bg-white p-7 text-left hover:border-accent"
+              >
+                <span className="font-serif text-2xl">{c.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 1 && category && (
         <div className="grid w-full gap-7 lg:grid-cols-[1fr_320px]">
           <div className="flex flex-col gap-6 rounded-2xl border border-border bg-white p-8">
             <div className="flex flex-col gap-1.5">
@@ -184,21 +215,22 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <label className="flex max-w-sm flex-1 flex-col gap-1.5 text-[14.5px] text-body">
-                Motif de consultation
-                <select
-                  value={motifId}
-                  onChange={(e) => setMotifId(e.target.value as MotifId)}
-                  className="h-[56px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5 text-[17px] text-ink focus:border-accent focus:outline-none"
-                >
-                  {motifs.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="eyebrow">Catégorie</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[17px] font-semibold">
+                    {categoryLabel(category)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={changeCategory}
+                    className="text-[14.5px] font-semibold text-accent underline"
+                  >
+                    Changer
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
@@ -284,7 +316,7 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
             <span className="text-[15.5px] leading-relaxed text-body">
               {siteConfig.adresseLigne1}, {siteConfig.adresseLigne2}
               <br />
-              {siteConfig.metro}
+              {siteConfig.zone}
             </span>
             <Button
               disabled={!selection}
@@ -301,7 +333,7 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
         </div>
       )}
 
-      {step === 2 && selectedSlot && (
+      {step === 2 && selectedSlot && category && (
         <form
           className="grid w-full gap-7 lg:grid-cols-[1fr_320px]"
           onSubmit={submitRequest}
@@ -394,7 +426,7 @@ export function BookingWizard({ motifInitial }: { motifInitial?: MotifId }) {
                 {formatUTCTime(new Date(selectedSlot.start))}
               </span>
               <span className="text-[15.5px] text-body">
-                {motif.label} · {SLOT_DURATION_MINUTES} min
+                {categoryLabel(category)} · {SLOT_DURATION_MINUTES} min
               </span>
             </div>
             <button

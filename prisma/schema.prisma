@@ -1,6 +1,4 @@
-// Modèle de données — voir "Modèle de données (esquisse)" dans PROJECT.md.
-// Ce schéma est la fondation (étape 4 du plan) : pas encore d'API GraphQL
-// ni de tables NextAuth (prévues aux étapes suivantes).
+// Modèle de données — voir "Modèle de données" dans PROJECT.md.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,52 +9,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum DayOfWeek {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
+enum Category {
+  MAXILLO_FACIAL
+  PRESSOTHERAPIE
 }
 
-/// Grille hebdomadaire récurrente des horaires d'ouverture.
-model AvailabilityRule {
-  id        String    @id @default(cuid())
-  dayOfWeek DayOfWeek
-
-  /// Minutes depuis minuit (0–1439), ex. 510 = 08:30.
-  startTime Int
-  /// Minutes depuis minuit (0–1439), ex. 1140 = 19:00.
-  endTime   Int
+/// Créneau ouvert manuellement par la praticienne — pas de récurrence
+/// (voir "Décisions produit" dans PROJECT.md) : chaque créneau est ajouté
+/// un par un, avec sa catégorie. Durée fixe (SLOT_DURATION_MINUTES).
+model AvailableSlot {
+  id       String   @id @default(cuid())
+  start    DateTime
+  category Category
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@index([dayOfWeek])
-}
-
-enum ExceptionType {
-  CLOSED
-  ADDED
-}
-
-/// Fermeture ou créneau ajouté ponctuel, en plus de la grille récurrente.
-model AvailabilityException {
-  id     String        @id @default(cuid())
-  date   DateTime      @db.Date
-  type   ExceptionType
-  reason String?
-
-  /// Bornes optionnelles : absentes = toute la journée. Minutes depuis minuit.
-  startTime Int?
-  endTime   Int?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([date])
+  @@unique([start, category])
+  @@index([start])
 }
 
 enum AppointmentStatus {
@@ -71,6 +40,7 @@ model Appointment {
 
   slotStart DateTime
   slotEnd   DateTime
+  category  Category
 
   patientName  String
   patientPhone String

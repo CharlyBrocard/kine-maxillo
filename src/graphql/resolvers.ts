@@ -1,6 +1,6 @@
 import { DateTimeResolver } from "graphql-scalars";
 import { GraphQLError } from "graphql";
-import type { DayOfWeek, ExceptionType } from "@prisma/client";
+import { Prisma, type Category } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   computeAvailableSlots,
@@ -20,13 +20,39 @@ function requireSession(context: GraphQLContext): void {
   }
 }
 
+async function isCoveredByActiveAppointment(
+  category: Category,
+  start: Date
+): Promise<boolean> {
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      category,
+      slotStart: start,
+      OR: [
+        { status: "CONFIRMED" },
+        { status: "PENDING", expiresAt: { gt: new Date() } },
+      ],
+    },
+    select: { id: true },
+  });
+  return !!appointment;
+}
+
 export const resolvers = {
   DateTime: DateTimeResolver,
 
+  AvailableSlot: {
+    booked: (parent: { category: Category; start: Date }) =>
+      isCoveredByActiveAppointment(parent.category, parent.start),
+  },
+
   Query: {
-    availableSlots: async (_: unknown, { from, to }: { from: Date; to: Date }) => {
+    availableSlots: async (
+      _: unknown,
+      { category, from, to }: { category: Category; from: Date; to: Date }
+    ) => {
       await expireStalePendingAppointments();
-      return computeAvailableSlots(from, to);
+      return computeAvailableSlots(category, from, to);
     },
 
     appointments: async (
@@ -42,14 +68,16 @@ export const resolvers = {
       });
     },
 
-    availabilityRules: async (_: unknown, __: unknown, context: GraphQLContext) => {
+    availableSlotEntries: async (
+      _: unknown,
+      { from, to }: { from: Date; to: Date },
+      context: GraphQLContext
+    ) => {
       requireSession(context);
-      return prisma.availabilityRule.findMany({ orderBy: { startTime: "asc" } });
-    },
-
-    availabilityExceptions: async (_: unknown, __: unknown, context: GraphQLContext) => {
-      requireSession(context);
-      return prisma.availabilityException.findMany({ orderBy: { date: "asc" } });
+      return prisma.availableSlot.findMany({
+        where: { start: { gte: from, lt: to } },
+        orderBy: { start: "asc" },
+      });
     },
   },
 
@@ -61,6 +89,7 @@ export const resolvers = {
       }: {
         input: {
           slotStart: Date;
+          category: Category;
           patientName: string;
           patientPhone: string;
           patientEmail: string;
@@ -73,7 +102,7 @@ export const resolvers = {
       const slotStart = input.slotStart;
       const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60_000);
 
-      if (!(await isSlotAvailable(slotStart))) {
+      if (!(await isSlotAvailable(input.category, slotStart))) {
         throw new GraphQLError("Ce créneau n'est plus disponible.");
       }
 
@@ -85,6 +114,7 @@ export const resolvers = {
         data: {
           slotStart,
           slotEnd,
+          category: input.category,
           patientName: input.patientName,
           patientPhone: input.patientPhone,
           patientEmail: input.patientEmail,
@@ -144,53 +174,36 @@ export const resolvers = {
       return { appointment: updated, cancellationToken: updated.cancellationToken };
     },
 
-    setAvailabilityRule: async (
+    addAvailableSlot: async (
       _: unknown,
-      {
-        input,
-      }: { input: { dayOfWeek: DayOfWeek; startTime: number; endTime: number } },
+      { input }: { input: { start: Date; category: Category } },
       context: GraphQLContext
     ) => {
       requireSession(context);
-      return prisma.availabilityRule.create({ data: input });
+      try {
+        return await prisma.availableSlot.create({ data: input });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new GraphQLError("Ce créneau est déjà ouvert pour cette catégorie.");
+        }
+        throw e;
+      }
     },
 
-    deleteAvailabilityRule: async (
+    deleteAvailableSlot: async (
       _: unknown,
       { id }: { id: string },
       context: GraphQLContext
     ) => {
       requireSession(context);
-      await prisma.availabilityRule.delete({ where: { id } });
-      return true;
-    },
-
-    addAvailabilityException: async (
-      _: unknown,
-      {
-        input,
-      }: {
-        input: {
-          date: Date;
-          type: ExceptionType;
-          reason?: string;
-          startTime?: number;
-          endTime?: number;
-        };
-      },
-      context: GraphQLContext
-    ) => {
-      requireSession(context);
-      return prisma.availabilityException.create({ data: input });
-    },
-
-    deleteAvailabilityException: async (
-      _: unknown,
-      { id }: { id: string },
-      context: GraphQLContext
-    ) => {
-      requireSession(context);
-      await prisma.availabilityException.delete({ where: { id } });
+      const slot = await prisma.availableSlot.findUnique({ where: { id } });
+      if (!slot) return true;
+      if (await isCoveredByActiveAppointment(slot.category, slot.start)) {
+        throw new GraphQLError(
+          "Ce créneau est réservé — annulez le rendez-vous depuis l'agenda avant de le supprimer."
+        );
+      }
+      await prisma.availableSlot.delete({ where: { id } });
       return true;
     },
 
