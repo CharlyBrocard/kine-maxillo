@@ -15,6 +15,16 @@ import {
   startOfUTCDay,
 } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
+import {
+  PATIENT_EMAIL_MAX,
+  PATIENT_NAME_MAX,
+  PATIENT_PHONE_MAX,
+  REASON_MAX,
+} from "@/lib/input-limits";
+
+// Le motif envoyé est "<catégorie> — <message>" : on garde de la marge
+// pour le préfixe sous la limite REASON_MAX de l'API.
+const MESSAGE_MAX = REASON_MAX - 100;
 
 type Step = 1 | 2 | 3;
 type ApiSlot = { start: string; end: string };
@@ -352,6 +362,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 Nom et prénom
                 <input
                   required
+                  maxLength={PATIENT_NAME_MAX}
                   value={nom}
                   onChange={(e) => setNom(e.target.value)}
                   className="h-[56px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5 text-[17px] text-ink focus:border-accent focus:outline-none"
@@ -362,6 +373,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 <input
                   required
                   type="tel"
+                  maxLength={PATIENT_PHONE_MAX}
                   value={telephone}
                   onChange={(e) => setTelephone(e.target.value)}
                   className="h-[56px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5 text-[17px] text-ink focus:border-accent focus:outline-none"
@@ -372,6 +384,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 <input
                   required
                   type="email"
+                  maxLength={PATIENT_EMAIL_MAX}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-[56px] rounded-[10px] border-2 border-accent bg-white px-4.5 text-[17px] text-ink focus:outline-none"
@@ -382,6 +395,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 <span className="text-faint">(optionnel)</span>
                 <textarea
                   rows={3}
+                  maxLength={MESSAGE_MAX}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Ex. : douleur à la mâchoire depuis 3 semaines, adressée par le Dr…"

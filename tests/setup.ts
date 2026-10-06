@@ -1,5 +1,6 @@
 import { beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma";
+import { resetRateLimits } from "@/lib/rate-limit";
 
 // Garde-fou : ne jamais vider une base qui ne ressemble pas à la base de
 // test, même si .env.test est mal chargé ou absent.
@@ -17,4 +18,5 @@ export async function resetDb(): Promise<void> {
 
 beforeEach(async () => {
   await resetDb();
+  resetRateLimits();
 });

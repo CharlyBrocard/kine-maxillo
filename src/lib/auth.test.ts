@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import bcrypt from "bcryptjs";
-import { authOptions } from "@/lib/auth";
+import { authOptions, LOGIN_MAX_FAILURES } from "@/lib/auth";
+import { LOGIN_RATE_LIMITED_ERROR } from "@/lib/auth-errors";
 
 const TEST_EMAIL = "johanna@kine-maxillo-lyon.com";
 const TEST_PASSWORD = "s3cret-test-password";
 
 type Authorize = (
-  credentials: { email: string; password: string } | undefined
+  credentials: { email: string; password: string } | undefined,
+  req?: { headers: Record<string, string> }
 ) => Promise<unknown>;
 
 // La fonction authorize() qu'on fournit à CredentialsProvider est stockée
@@ -51,5 +53,22 @@ describe("Credentials provider authorize()", () => {
     await expect(authorize()({ email: TEST_EMAIL, password: TEST_PASSWORD })).rejects.toThrow();
 
     process.env.ADMIN_EMAIL = savedEmail;
+  });
+
+  it("locks an IP out after too many failures, even with the right password", async () => {
+    const req = { headers: { "x-forwarded-for": "198.51.100.9" } };
+    for (let i = 0; i < LOGIN_MAX_FAILURES; i++) {
+      expect(await authorize()({ email: TEST_EMAIL, password: "wrong" }, req)).toBeNull();
+    }
+
+    await expect(authorize()({ email: TEST_EMAIL, password: TEST_PASSWORD }, req)).rejects.toThrow(
+      LOGIN_RATE_LIMITED_ERROR
+    );
+    // Une autre IP n'est pas affectée.
+    const other = { headers: { "x-forwarded-for": "198.51.100.10" } };
+    expect(await authorize()({ email: TEST_EMAIL, password: TEST_PASSWORD }, other)).toEqual({
+      id: "practitioner",
+      email: TEST_EMAIL,
+    });
   });
 });

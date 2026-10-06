@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
+import { LOGIN_RATE_LIMITED_ERROR } from "@/lib/auth-errors";
 
 export default function EspaceLoginPage() {
   const router = useRouter();
@@ -28,7 +29,11 @@ export default function EspaceLoginPage() {
     setSubmitting(false);
 
     if (result?.error) {
-      setError("Email ou mot de passe incorrect.");
+      setError(
+        result.error === LOGIN_RATE_LIMITED_ERROR
+          ? "Trop de tentatives de connexion. Réessayez dans 15 minutes."
+          : "Email ou mot de passe incorrect."
+      );
       return;
     }
 

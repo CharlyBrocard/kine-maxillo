@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import * as slots from "@/lib/slots";
 import { graphql, type GraphQLError } from "graphql";
 import { schema } from "@/graphql/schema";
 import { prisma } from "@/lib/prisma";
@@ -361,5 +362,202 @@ describe("availableSlotEntries booked flag", () => {
       authed
     );
     expect(after.data?.availableSlotEntries).toEqual([{ id: slot.id, booked: true }]);
+  });
+});
+
+const REQUEST_MUTATION = `mutation($input: RequestAppointmentInput!) {
+  requestAppointment(input: $input) { appointment { id } }
+}`;
+
+function bookingInput(start: Date, overrides: Record<string, unknown> = {}) {
+  return {
+    slotStart: start.toISOString(),
+    category: "MAXILLO_FACIAL",
+    patientName: "Marie Curie",
+    patientPhone: "06 11 11 11 11",
+    patientEmail: "marie@example.com",
+    reason: "Rééducation maxillo-faciale — douleur ATM",
+    ...overrides,
+  };
+}
+
+describe("requestAppointment — sécurité", () => {
+  it("maps a lost race (check passed, insert refused by the DB) to 'plus disponible'", async () => {
+    const start = futureDate(DAY);
+    await createSlot(start, "MAXILLO_FACIAL");
+    await createAppointment({ slotStart: start, category: "MAXILLO_FACIAL", status: "PENDING" });
+    // Simule la fenêtre de course : la vérification applicative ne voit pas
+    // encore le RDV concurrent, seule la contrainte en base l'arrête.
+    const spy = vi.spyOn(slots, "isSlotAvailable").mockResolvedValueOnce(true);
+
+    const result = await exec(REQUEST_MUTATION, { input: bookingInput(start) });
+
+    spy.mockRestore();
+    expect(firstErrorMessage(result)).toBe("Ce créneau n'est plus disponible.");
+    expect(await prisma.appointment.count()).toBe(1);
+  });
+
+  it("enforces the partial unique index at the database level", async () => {
+    const start = futureDate(DAY);
+    await createAppointment({ slotStart: start, category: "MAXILLO_FACIAL", status: "CONFIRMED" });
+    await expect(
+      createAppointment({ slotStart: start, category: "MAXILLO_FACIAL", status: "PENDING" })
+    ).rejects.toThrow();
+    // Un RDV annulé/expiré ne bloque pas le créneau.
+    await createAppointment({ slotStart: start, category: "MAXILLO_FACIAL", status: "CANCELLED" });
+    await createAppointment({ slotStart: start, category: "PRESSOTHERAPIE", status: "PENDING" });
+  });
+
+  it.each([
+    ["empty name", { patientName: "   " }],
+    ["invalid email", { patientEmail: "pas-un-email" }],
+    ["invalid phone", { patientPhone: "appelez-moi" }],
+    ["too short phone", { patientPhone: "0612" }],
+    ["newline in name", { patientName: "Marie\nCurie" }],
+    ["reason too long", { reason: "x".repeat(1001) }],
+  ])("rejects %s with BAD_USER_INPUT and creates nothing", async (_, overrides) => {
+    const start = futureDate(DAY);
+    await createSlot(start, "MAXILLO_FACIAL");
+
+    const result = await exec(REQUEST_MUTATION, { input: bookingInput(start, overrides) });
+
+    expect(result.errors?.[0]?.extensions?.code).toBe("BAD_USER_INPUT");
+    expect(await prisma.appointment.count()).toBe(0);
+  });
+
+  it("stores trimmed values, a lowercased email and null for an empty reason", async () => {
+    const start = futureDate(DAY);
+    await createSlot(start, "MAXILLO_FACIAL");
+
+    const result = await exec(REQUEST_MUTATION, {
+      input: bookingInput(start, {
+        patientName: "  Marie Curie ",
+        patientEmail: " Marie@Example.COM ",
+        reason: "   ",
+      }),
+    });
+
+    expect(result.errors).toBeUndefined();
+    const stored = await prisma.appointment.findFirstOrThrow();
+    expect(stored.patientName).toBe("Marie Curie");
+    expect(stored.patientEmail).toBe("marie@example.com");
+    expect(stored.reason).toBeNull();
+  });
+
+  it("rate-limits requests per IP", async () => {
+    const starts = Array.from({ length: 6 }, (_, i) => futureDate(DAY + i * 60 * 60_000));
+    for (const s of starts) await createSlot(s, "MAXILLO_FACIAL");
+
+    const ctx: GraphQLContext = { session: null, clientIp: "203.0.113.7" };
+    const results = [];
+    for (const [i, s] of starts.entries()) {
+      results.push(
+        await exec(REQUEST_MUTATION, { input: bookingInput(s, { patientEmail: `p${i}@example.com` }) }, ctx)
+      );
+    }
+
+    expect(results.slice(0, 5).every((r) => !r.errors)).toBe(true);
+    expect(results[5].errors?.[0]?.extensions?.code).toBe("TOO_MANY_REQUESTS");
+    expect(await prisma.appointment.count()).toBe(5);
+  });
+
+  it("rate-limits requests per email, across IPs", async () => {
+    const starts = Array.from({ length: 4 }, (_, i) => futureDate(DAY + i * 60 * 60_000));
+    for (const s of starts) await createSlot(s, "MAXILLO_FACIAL");
+
+    const results = [];
+    for (const [i, s] of starts.entries()) {
+      results.push(
+        await exec(REQUEST_MUTATION, { input: bookingInput(s) }, { session: null, clientIp: `10.1.0.${i}` })
+      );
+    }
+
+    expect(results.slice(0, 3).every((r) => !r.errors)).toBe(true);
+    expect(results[3].errors?.[0]?.extensions?.code).toBe("TOO_MANY_REQUESTS");
+  });
+});
+
+describe("query ranges", () => {
+  it("rejects an availableSlots range longer than the maximum", async () => {
+    const result = await exec(
+      `query($from: DateTime!, $to: DateTime!) {
+        availableSlots(category: MAXILLO_FACIAL, from: $from, to: $to) { start }
+      }`,
+      { from: new Date().toISOString(), to: futureDate(400 * DAY).toISOString() }
+    );
+    expect(result.errors?.[0]?.extensions?.code).toBe("BAD_USER_INPUT");
+  });
+});
+
+describe("motif (donnée sensible) — purge", () => {
+  it("clears the reason when the patient cancels", async () => {
+    const appt = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      status: "CONFIRMED",
+      reason: "douleur ATM",
+    });
+
+    const result = await exec(
+      `mutation($token: String!) { cancelAppointment(token: $token) { appointment { status } } }`,
+      { token: appt.cancellationToken }
+    );
+
+    expect(result.errors).toBeUndefined();
+    expect((await prisma.appointment.findUniqueOrThrow({ where: { id: appt.id } })).reason).toBeNull();
+  });
+
+  it("clears the reason when the practitioner cancels", async () => {
+    const appt = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      status: "CONFIRMED",
+      reason: "douleur ATM",
+    });
+
+    await exec(
+      `mutation($id: ID!) { cancelAppointmentAsAdmin(id: $id) { status } }`,
+      { id: appt.id },
+      authed
+    );
+
+    expect((await prisma.appointment.findUniqueOrThrow({ where: { id: appt.id } })).reason).toBeNull();
+  });
+
+  it("clears the reason when a pending appointment expires", async () => {
+    const appt = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      status: "PENDING",
+      expiresAt: futureDate(-60_000),
+      reason: "douleur ATM",
+    });
+
+    await exec(
+      `query($from: DateTime!, $to: DateTime!) {
+        availableSlots(category: MAXILLO_FACIAL, from: $from, to: $to) { start }
+      }`,
+      { from: new Date().toISOString(), to: futureDate(2 * DAY).toISOString() }
+    );
+
+    const stored = await prisma.appointment.findUniqueOrThrow({ where: { id: appt.id } });
+    expect(stored.status).toBe("EXPIRED");
+    expect(stored.reason).toBeNull();
+  });
+});
+
+describe("token format", () => {
+  it("rejects malformed tokens without hitting the database lookup", async () => {
+    const confirm = await exec(
+      `mutation($token: String!) { confirmAppointment(token: $token) { appointment { id } } }`,
+      { token: "x".repeat(10_000) }
+    );
+    expect(firstErrorMessage(confirm)).toBe("Lien de confirmation invalide.");
+
+    const cancel = await exec(
+      `mutation($token: String!) { cancelAppointment(token: $token) { appointment { id } } }`,
+      { token: "' OR 1=1 --" }
+    );
+    expect(firstErrorMessage(cancel)).toBe("Lien d'annulation invalide.");
   });
 });

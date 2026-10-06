@@ -8,8 +8,27 @@ import {
   isSlotAvailable,
 } from "@/lib/slots";
 import { generateToken } from "@/lib/tokens";
+import { assertQueryRange, isWellFormedToken, validatePatientInput } from "@/lib/validation";
+import { hit } from "@/lib/rate-limit";
+import { purgeStaleReasons } from "@/lib/retention";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 import type { GraphQLContext } from "@/graphql/context";
+
+/**
+ * Limites de demandes de RDV : chaque demande bloque un créneau 20 min,
+ * un bot pourrait sinon vider l'agenda en continu (et, une fois Brevo
+ * branché, envoyer des emails à des tiers).
+ */
+const BOOKING_LIMIT_WINDOW_MS = 60 * 60_000;
+const BOOKING_LIMIT_PER_IP = 5;
+const BOOKING_LIMIT_PER_EMAIL = 3;
+
+function tooManyRequests(): GraphQLError {
+  return new GraphQLError(
+    "Trop de demandes de rendez-vous. Réessayez plus tard ou appelez le cabinet.",
+    { extensions: { code: "TOO_MANY_REQUESTS" } }
+  );
+}
 
 /** Mono-compte praticienne (voir PROJECT.md) — utilisé par les opérations admin. */
 function requireSession(context: GraphQLContext): void {
@@ -51,6 +70,7 @@ export const resolvers = {
       _: unknown,
       { category, from, to }: { category: Category; from: Date; to: Date }
     ) => {
+      assertQueryRange(from, to);
       await expireStalePendingAppointments();
       return computeAvailableSlots(category, from, to);
     },
@@ -61,7 +81,9 @@ export const resolvers = {
       context: GraphQLContext
     ) => {
       requireSession(context);
+      assertQueryRange(from, to);
       await expireStalePendingAppointments();
+      await purgeStaleReasons();
       return prisma.appointment.findMany({
         where: { slotStart: { lt: to }, slotEnd: { gt: from } },
         orderBy: { slotStart: "asc" },
@@ -74,6 +96,7 @@ export const resolvers = {
       context: GraphQLContext
     ) => {
       requireSession(context);
+      assertQueryRange(from, to);
       return prisma.availableSlot.findMany({
         where: { start: { gte: from, lt: to } },
         orderBy: { start: "asc" },
@@ -93,11 +116,21 @@ export const resolvers = {
           patientName: string;
           patientPhone: string;
           patientEmail: string;
-          reason?: string;
+          reason?: string | null;
         };
-      }
+      },
+      context: GraphQLContext
     ) => {
+      const patient = validatePatientInput(input);
+      if (!hit(`booking:ip:${context.clientIp ?? "unknown"}`, BOOKING_LIMIT_PER_IP, BOOKING_LIMIT_WINDOW_MS)) {
+        throw tooManyRequests();
+      }
+      if (!hit(`booking:email:${patient.patientEmail}`, BOOKING_LIMIT_PER_EMAIL, BOOKING_LIMIT_WINDOW_MS)) {
+        throw tooManyRequests();
+      }
+
       await expireStalePendingAppointments();
+      await purgeStaleReasons();
 
       const slotStart = input.slotStart;
       const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60_000);
@@ -110,26 +143,36 @@ export const resolvers = {
       const cancellationToken = generateToken();
       const expiresAt = new Date(Date.now() + PENDING_HOLD_MINUTES * 60_000);
 
-      const appointment = await prisma.appointment.create({
-        data: {
-          slotStart,
-          slotEnd,
-          category: input.category,
-          patientName: input.patientName,
-          patientPhone: input.patientPhone,
-          patientEmail: input.patientEmail,
-          reason: input.reason,
-          status: "PENDING",
-          confirmationToken,
-          cancellationToken,
-          expiresAt,
-        },
-      });
+      let appointment;
+      try {
+        appointment = await prisma.appointment.create({
+          data: {
+            slotStart,
+            slotEnd,
+            category: input.category,
+            ...patient,
+            status: "PENDING",
+            confirmationToken,
+            cancellationToken,
+            expiresAt,
+          },
+        });
+      } catch (e) {
+        // Index unique partiel "Appointment_active_slot_key" : une requête
+        // concurrente a pris le créneau entre isSlotAvailable et l'insertion.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new GraphQLError("Ce créneau n'est plus disponible.");
+        }
+        throw e;
+      }
 
       return { appointment, confirmationToken, cancellationToken };
     },
 
     confirmAppointment: async (_: unknown, { token }: { token: string }) => {
+      if (!isWellFormedToken(token)) {
+        throw new GraphQLError("Lien de confirmation invalide.");
+      }
       await expireStalePendingAppointments();
 
       const appointment = await prisma.appointment.findUnique({
@@ -157,6 +200,9 @@ export const resolvers = {
     },
 
     cancelAppointment: async (_: unknown, { token }: { token: string }) => {
+      if (!isWellFormedToken(token)) {
+        throw new GraphQLError("Lien d'annulation invalide.");
+      }
       const appointment = await prisma.appointment.findUnique({
         where: { cancellationToken: token },
       });
@@ -169,7 +215,7 @@ export const resolvers = {
 
       const updated = await prisma.appointment.update({
         where: { id: appointment.id },
-        data: { status: "CANCELLED" },
+        data: { status: "CANCELLED", reason: null },
       });
       return { appointment: updated, cancellationToken: updated.cancellationToken };
     },
@@ -215,7 +261,7 @@ export const resolvers = {
       requireSession(context);
       return prisma.appointment.update({
         where: { id },
-        data: { status: "CANCELLED" },
+        data: { status: "CANCELLED", reason: null },
       });
     },
   },

@@ -51,10 +51,13 @@ export async function isSlotAvailable(
   return slots.some((s) => s.start.getTime() === slotStart.getTime());
 }
 
-/** Bascule en EXPIRED les RDV pending dont le délai de confirmation est dépassé. */
+/**
+ * Bascule en EXPIRED les RDV pending dont le délai de confirmation est
+ * dépassé, et efface leur motif au passage (voir purgeStaleReasons).
+ */
 export async function expireStalePendingAppointments(): Promise<void> {
   await prisma.appointment.updateMany({
     where: { status: "PENDING", expiresAt: { lt: new Date() } },
-    data: { status: "EXPIRED" },
+    data: { status: "EXPIRED", reason: null },
   });
 }
