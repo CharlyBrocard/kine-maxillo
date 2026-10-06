@@ -1,0 +1,303 @@
+# Site vitrine + prise de RDV — Kiné maxillo-facial (Lyon)
+
+## Contexte
+Site pour une kinésithérapeute spécialisée en rééducation oro-maxillo-faciale
+(Lyon). Objectif : vitrine + prise de RDV ponctuelle, sans compte utilisateur
+patient, backoffice simple pour la kiné.
+
+- Domaine : `kine-maxillo-lyon.com` (dispo chez OVH, réservé)
+- Pas de deadline stricte — dev visé dans les prochains jours
+- DA/maquettes : à faire via Claude (design), pas encore produites
+- Hébergement : VPS existant du dev (pas Vercel), via Docker
+
+## Priorités absolues
+
+Deux critères passent avant tout le reste, y compris avant de finir les
+fonctionnalités restantes du plan plus bas :
+
+1. **Sécurité de l'app.** Le site gère des coordonnées patients et un
+   champ "motif" potentiellement assimilable à une donnée de santé — voir
+   "Décisions produit" plus bas. Toute nouvelle fonctionnalité doit être
+   évaluée sous cet angle avant d'être considérée terminée (auth sur les
+   routes admin, validation des entrées, pas de fuite de données entre
+   patients, secrets non exposés, etc.).
+2. **SEO pour "kiné maxillo-facial ouest lyonnais".** L'objectif business
+   du site est d'être trouvé par des patients qui cherchent une prise en
+   charge oro-maxillo-faciale dans l'ouest lyonnais (Tassin, Charbonnières,
+   Craponne, Écully, etc.) — pas seulement "Lyon" en général. À noter :
+   l'adresse actuelle du site (`src/lib/site-config.ts`) est un
+   placeholder "Lyon 6e", qui n'est pas dans l'ouest lyonnais — un point à
+   trancher avec la vraie adresse du cabinet avant d'optimiser le SEO
+   local (Google Business, structured data, mots-clés de zone).
+
+## Contenu métier (à partir de sa fiche Google Business)
+
+Trois axes de service :
+1. **Rééducation oro-maxillo-faciale** : troubles de la mâchoire, douleurs de
+   l'ATM (articulation temporo-mandibulaire), dysfonctionnements de la sphère
+   oro-faciale
+2. **Rééducation fonctionnelle classique** : post-opératoire, traumatologique,
+   douleurs musculosquelettiques
+3. **Drainage lymphatique par pressothérapie** (bottes) — seul acte pour
+   lequel un tarif public sera affiché
+
+> Note : ces trois axes restent la description du contenu vitrine
+> (accueil, /specialites). Côté prise de RDV, les catégories 1 et 2
+> ci-dessus sont fusionnées en une seule catégorie de réservation
+> "Rééducation maxillo-faciale" (voir "Décisions produit") — la
+> distinction reste visible dans le contenu marketing, mais pas dans le
+> formulaire de réservation.
+
+## Infos encore à récupérer (remplies manuellement par l'utilisateur)
+- ~~Nom de la kiné~~ — Johanna Rouzier
+- ~~Adresse du cabinet~~ — 6 Av. Jacques Nemos, 69390 Millery (ouest
+  lyonnais — voir "Priorités absolues" : cohérent avec l'axe SEO)
+- ~~Téléphone~~ — 04 72 30 74 85
+- Email de contact — encore un placeholder
+  (`contact@kine-maxillo-lyon.com`, à confirmer)
+- Numéro RPPS/ADELI + SIRET (mentions légales obligatoires, profession de
+  santé réglementée par l'Ordre des Masseurs-Kinésithérapeutes)
+- Photos (cabinet, portrait) — placeholders en attendant la DA
+- Tarif de la pressothérapie
+
+Point à trancher : le domaine réservé est `kine-maxillo-lyon.com`, mais le
+cabinet est à Millery (ouest lyonnais), pas à Lyon — à voir si ça reste le
+bon nom de domaine une fois le SEO local travaillé.
+
+## Décisions produit
+
+- **Pas de compte patient.** La prise de RDV se fait par formulaire +
+  confirmation par **email** (lien de confirmation), pas de SMS (coût +
+  complexité écartés).
+- **Un seul compte réel** : la kiné, via NextAuth, pour le backoffice.
+- **Durée fixe de 30 minutes**, quelle que soit la catégorie de RDV.
+- **Deux catégories de RDV**, chacune avec sa propre disponibilité (un
+  créneau ouvert pour l'une n'est pas proposé pour l'autre) :
+  1. Rééducation maxillo-faciale
+  2. Pressothérapie
+- **Choix de la catégorie avant le choix du créneau** dans le parcours de
+  réservation, puisque les créneaux disponibles varient selon la catégorie.
+- **Annulation en self-service** : lien unique dans l'email de confirmation
+  permettant au patient d'annuler lui-même (libère le créneau).
+- **Notification à la kiné** par email à chaque nouveau RDV confirmé.
+- **Gestion des disponibilités sans récurrence.** Pas de grille
+  hebdomadaire : la praticienne ouvre les créneaux un par un (date + heure
+  + catégorie) depuis le backoffice. Plus simple à gérer pour un volume de
+  RDV faible, quitte à devoir en rajouter plus souvent.
+- **Donnée de santé potentielle** : le champ "motif" du RDV est traité comme
+  sensible → minimisation, purge après un délai, hébergement maîtrisé (VPS
+  propre plutôt que SaaS US).
+
+## Stack technique
+
+- **Framework** : Next.js (App Router), TypeScript strict
+- **API** : GraphQL (GraphQL Yoga ou Apollo Server) monté sur une route API
+  Next.js
+- **DB** : PostgreSQL (via Prisma), hébergée sur le VPS (Docker)
+- **Auth** : NextAuth, un seul compte (la kiné)
+- **Email transactionnel** : Brevo (société EU, offre gratuite ~300/jour) —
+  pas de SMTP auto-hébergé (problèmes de délivrabilité/réputation IP sur VPS
+  générique)
+- **Déploiement** : Docker Compose (app + Postgres) + Caddy (HTTPS auto) sur
+  le VPS existant du dev
+
+## Modèle de données
+
+Implémenté (`prisma/schema.prisma`) — pas de génération de créneaux à
+l'avance, la disponibilité vient directement des `AvailableSlot` ouverts un
+par un par la praticienne, moins les RDV existants.
+
+```
+enum Category { MAXILLO_FACIAL, PRESSOTHERAPIE }
+
+AvailableSlot
+  id, start, category
+  (durée déduite de SLOT_DURATION_MINUTES = 30, pas stockée)
+
+Appointment
+  id, slotStart, slotEnd, category
+  patientName, patientPhone, patientEmail, reason
+  status (pending | confirmed | cancelled | expired)
+  confirmationToken, cancellationToken, expiresAt
+  createdAt
+```
+
+Règle clé anti double-booking : une demande de RDV réserve immédiatement le
+créneau en `pending` avec une expiration courte (~20-30 min). Sans
+confirmation dans ce délai, le créneau se libère automatiquement.
+
+Créneaux disponibles pour une catégorie = ses `AvailableSlot` moins les
+`Appointment` de cette même catégorie en `pending` (non expirés) ou
+`confirmed` sur la période.
+
+(Historique : la V1 avait un modèle `AvailabilityRule` (grille hebdomadaire
+récurrente) + `AvailabilityException`, remplacé par ce modèle plus simple
+une fois la décision prise de ne pas gérer de récurrence.)
+
+## Schéma GraphQL
+
+```graphql
+type Query {
+  availableSlots(category: Category!, from: DateTime!, to: DateTime!): [Slot!]!
+
+  # authentifié (kiné)
+  appointments(from: DateTime!, to: DateTime!): [Appointment!]!
+  availableSlotEntries(from: DateTime!, to: DateTime!): [AvailableSlot!]!
+}
+
+type Mutation {
+  requestAppointment(input: RequestAppointmentInput!): RequestAppointmentPayload!
+  confirmAppointment(token: String!): AppointmentPayload!
+  cancelAppointment(token: String!): AppointmentPayload!
+
+  # authentifié (kiné)
+  addAvailableSlot(input: AddAvailableSlotInput!): AvailableSlot!
+  deleteAvailableSlot(id: ID!): Boolean!
+  cancelAppointmentAsAdmin(id: ID!): Appointment!
+}
+```
+
+## Pages du site vitrine (esquisse)
+- Accueil
+- Présentation / spécialités (les 3 axes ci-dessus)
+- Tarifs (pressothérapie uniquement)
+- Contact
+- Mentions légales (RPPS/ADELI, SIRET, adresse, etc.)
+- Prise de RDV (intégrée, pas une page à part probablement)
+
+## Prochaines étapes
+1. ~~Maquettes UI (Claude design)~~ — fait, projet
+   "Kinésithérapeute Lyon OMF" sur claude.ai/design
+2. ~~Scaffold du repo + intégration DA~~ — fait : Next.js (App Router,
+   TypeScript, Tailwind v4) avec toutes les pages de la maquette
+   (vitrine, parcours RDV, backoffice) en composants React, données
+   mockées côté client (pas encore de DB/API/auth/email réels). Voir
+   README.md pour le détail des routes.
+3. ~~Fondations données~~ — fait : `docker-compose.yml` (Postgres local),
+   schéma Prisma initial (`AvailabilityRule`, `AvailabilityException`,
+   `Appointment`) et migration appliquée. Modèle remplacé depuis, voir
+   étape 10.
+4. ~~API GraphQL~~ — fait : route `/api/graphql` (graphql-yoga) exposant
+   le schéma esquissé plus haut (`availableSlots`, `requestAppointment`,
+   `confirmAppointment`, `cancelAppointment`, mutations admin), avec le
+   calcul de créneaux réel (règles + exceptions − RDV pending/confirmed)
+   et le blocage anti-double-booking. Testée de bout en bout. Mutations
+   admin (`setAvailabilityRule`, `addAvailabilityException`,
+   `cancelAppointmentAsAdmin`, query `appointments`) protégées par auth
+   depuis l'étape 7 ci-dessous. Schéma de disponibilités remplacé depuis,
+   voir étape 10.
+5. ~~Branchement du parcours de prise de RDV sur l'API~~ — fait :
+   `/rendez-vous` charge les créneaux réels (`availableSlots`, navigation
+   semaine par semaine) et réserve via `requestAppointment` ;
+   `/rendez-vous/confirmation` et `/rendez-vous/annule` appellent
+   réellement `confirmAppointment` / `cancelAppointment` (par token, en
+   lisant `?token=...`). Testé de bout en bout. **Il manque encore l'envoi
+   d'email Brevo** : faute de mieux, l'étape 3 du parcours affiche un lien
+   de démo "Simuler le clic sur le lien de confirmation" à la place de
+   l'email réel — à retirer une fois Brevo branché. La notification à la
+   kiné par email à chaque RDV confirmé n'est pas non plus implémentée.
+6. Envoi d'email réel via Brevo (lien de confirmation au patient,
+   notification à la kiné), à la place du lien de démo de l'étape 3 du
+   parcours `/rendez-vous`. **Indispensable dans la même étape** : retirer
+   `confirmationToken` / `cancellationToken` de `RequestAppointmentPayload`
+   — tant qu'ils sont renvoyés à l'appelant, la vérification par email est
+   contournable (on peut confirmer un RDV avec une adresse fictive).
+7. ~~Auth NextAuth (mono-compte praticienne)~~ — fait : Credentials
+   provider (`src/lib/auth.ts`), identifiants dans `ADMIN_EMAIL` /
+   `ADMIN_PASSWORD_HASH` (pas de table `User` — un seul compte, comme
+   décidé). `/espace` appelle réellement `signIn`, `/espace/(dashboard)`
+   (agenda, disponibilités) redirige vers `/espace` sans session valide,
+   et les mutations admin de l'API GraphQL exigent
+   maintenant cette session (`UNAUTHENTICATED` sinon). Testé de bout en
+   bout (accès refusé sans session, accepté avec, mauvais mot de passe
+   rejeté).
+8. ~~Branchement de /espace/disponibilites sur l'API~~ — fait (première
+   version, sur le modèle `AvailabilityRule`/`AvailabilityException` —
+   entièrement revu depuis, voir étape 10) : lecture et écriture via
+   l'API GraphQL, plus de données mockées ni de bouton "Enregistrer" à
+   part. Testé de bout en bout.
+9. ~~Branchement de /espace/agenda sur l'API~~ — fait : semaine
+   calendaire (lundi-dimanche) navigable, RDV `PENDING`/`CONFIRMED`
+   affichés par jour via `appointments`, annulation admin réelle via
+   `cancelAppointmentAsAdmin` (sans token, la praticienne est déjà
+   authentifiée — différent de `cancelAppointment` côté patient). Les RDV
+   `CANCELLED`/`EXPIRED` sont exclus de l'affichage. Testé de bout en
+   bout. Le bouton "+ Ajouter un RDV" de la maquette a été retiré (il ne
+   faisait rien) plutôt que laissé décoratif — pas de création manuelle
+   de RDV depuis le backoffice pour l'instant, à ajouter plus tard si
+   besoin (nécessiterait une nouvelle mutation admin : contrairement à
+   `requestAppointment`, un RDV créé par la praticienne devrait être
+   `CONFIRMED` directement, sans tokens ni hold `PENDING`).
+   `mock-agenda.ts` supprimé (plus utilisé).
+10. ~~Revue métier : catégories, durée fixe, disponibilités sans
+    récurrence~~ — fait. Changements de fond (voir "Décisions produit") :
+    - Durée uniforme de 30 min pour tout RDV (`SLOT_DURATION_MINUTES`),
+      remplace l'ancien `40 min`.
+    - Deux catégories de RDV (`Category` : `MAXILLO_FACIAL`,
+      `PRESSOTHERAPIE`), chacune avec sa propre disponibilité.
+    - `AvailabilityRule` (grille récurrente) et `AvailabilityException`
+      supprimés du schéma Prisma, remplacés par `AvailableSlot` (créneau
+      ponctuel : date + heure + catégorie, ajouté un par un par la
+      praticienne, sans notion de récurrence ni d'exception).
+    - `/rendez-vous` : la catégorie se choisit avant de voir les
+      créneaux disponibles (nouvel écran, avant l'ancienne étape 1).
+    - `/espace/disponibilites` entièrement réécrit : formulaire simple
+      (date + heure + catégorie) + liste chronologique des créneaux
+      ouverts avec suppression (bloquée côté serveur si le créneau est
+      déjà réservé — invite à annuler le RDV depuis l'agenda à la place).
+    - `motifs.ts` (3 motifs, dont un sans lien avec une catégorie de
+      créneau) remplacé par `categories.ts` (2 catégories, alignées sur
+      le modèle de disponibilité).
+    - Testé de bout en bout, migration Prisma appliquée
+      (`simplify_availability_no_recurrence`).
+11. ~~Suppression de /espace/patients et /espace/reglages~~ — fait :
+    c'étaient des stubs "bientôt disponible" de la maquette, jamais
+    branchés. Décision prise après avoir évalué le coût de chacun :
+    - **Patients** aurait été raisonnable à construire (annuaire dérivé
+      des `Appointment` groupés par contact, sans nouveau modèle), mais
+      irait à l'encontre du principe de minimisation du motif de RDV
+      acté dans "Décisions produit" — à reconsidérer plus tard si
+      besoin, en connaissance de ce compromis.
+    - **Réglages** aurait nécessité un vrai chantier (les infos du
+      cabinet sont dans `site-config.ts`, un fichier statique, pas en
+      base — il aurait fallu un modèle Prisma dédié et faire lire les
+      pages vitrine depuis la base). Pas de valeur immédiate tant que
+      Claude modifie directement le code pour ces changements.
+    Retirés de `Sidebar.tsx` plutôt que laissés comme liens morts.
+12. Récupération des infos manquantes par l'utilisateur (nom, adresse,
+   tarif, RPPS/ADELI, SIRET) — actuellement des placeholders de la
+   maquette dans `src/lib/site-config.ts`
+13. ~~Tests automatisés pour l'API~~ — fait : Vitest, tests d'intégration
+    contre une vraie base Postgres de test (`kine_maxillo_test`, séparée
+    de la base de dev — voir README.md "Tests"). Couvre le calcul de
+    créneaux, le parcours GraphQL complet (réservation,
+    anti-double-booking, idempotence confirm/cancel, protection des
+    opérations admin) et l'auth. Pas de CI qui les rejoue automatiquement
+    pour l'instant — juste `npm test` en local.
+14. Déploiement Docker Compose + Caddy sur le VPS. À prévoir au passage :
+    une tâche planifiée qui appelle `purgeStaleReasons()` (aujourd'hui
+    seulement déclenchée par le trafic, voir étape 15).
+15. ~~Correctifs de sécurité~~ — fait :
+    - **Double réservation** : index unique partiel en base
+      (`Appointment_active_slot_key` : un seul RDV `PENDING`/`CONFIRMED`
+      par créneau et catégorie, migration SQL manuelle car non
+      exprimable dans `schema.prisma` — Prisma l'ignore sans le
+      supprimer, vérifié avec `prisma migrate diff`). La vérification
+      applicative seule laissait passer deux requêtes simultanées.
+    - **Validation des entrées** (`src/lib/validation.ts`) : nom,
+      téléphone, email, longueur du motif, format des tokens, période
+      max de 93 jours sur les requêtes de créneaux/agenda.
+    - **Limitation de débit** en mémoire (`src/lib/rate-limit.ts`, OK
+      pour un seul conteneur) : 5 demandes de RDV/h par IP, 3/h par
+      email ; connexion praticienne bloquée 15 min après 10 échecs par
+      IP (bcrypt toujours exécuté pour ne pas révéler l'email admin).
+    - **Purge du motif** (`src/lib/retention.ts`) : effacé
+      immédiatement à l'annulation/expiration, et 30 jours
+      (`REASON_RETENTION_DAYS`) après la fin du RDV sinon.
+    - **API** : GraphiQL et introspection désactivés en production.
+    - **En-têtes HTTP** (`next.config.ts`) : anti-clickjacking,
+      `Referrer-Policy: no-referrer` (les liens de confirmation portent
+      un token), HSTS, nosniff, `x-powered-by` retiré.
+    Reste ouvert : formulaire de contact factice (`ContactForm.tsx`, à
+    brancher avec Brevo ou à retirer) et CSP complète (nécessite des
+    nonces Next.js).
