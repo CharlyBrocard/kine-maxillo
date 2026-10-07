@@ -46,9 +46,10 @@ export function resetRateLimits(): void {
 }
 
 /**
- * IP du client derrière le reverse proxy (Caddy). Caddy remplace le
- * X-Forwarded-For envoyé par le client (sauf trusted_proxies configurés),
- * donc la dernière entrée est l'IP vue par Caddy — non falsifiable.
+ * IP du client derrière le reverse proxy (Nginx sur le VPS). La config
+ * Nginx (deploy/nginx/) remplace X-Forwarded-For par $remote_addr ; on
+ * lit quand même la dernière entrée, qui reste l'IP vue par le proxy si
+ * celui-ci ajoute au lieu de remplacer — jamais une valeur du client.
  * Sans proxy (dev), pas d'en-tête : tout le monde partage la clé "unknown".
  */
 export function clientIpFromHeaders(get: (name: string) => string | null | undefined): string {

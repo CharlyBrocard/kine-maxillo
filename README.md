@@ -108,3 +108,74 @@ confirmation/annulation idempotentes, protection des opérations admin
 (`src/graphql/resolvers.test.ts`) — et l'authentification
 (`src/lib/auth.test.ts`). Pas encore de tests sur les composants React
 (wizard de réservation, backoffice) ni de CI qui les rejoue automatiquement.
+
+## Déploiement (VPS)
+
+Stack de prod : `docker-compose.prod.yml` — l'app Next.js (image
+`Dockerfile`, sortie `standalone`) sur `127.0.0.1:3001`, un Postgres dédié
+sans port publié, et un service `migrate` qui applique les migrations
+Prisma avant chaque démarrage de l'app. Nginx, déjà installé sur l'hôte,
+fait le reverse proxy (`deploy/nginx/`), certbot gère le HTTPS. Les tâches
+de fond (expiration des RDV non confirmés, purge du motif) tournent toutes
+les heures dans le serveur (`src/instrumentation.ts`).
+
+### Première installation (en root sur le VPS)
+
+1. **Clé de déploiement GitHub** (repo privé, lecture seule) :
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/kine_maxillo_deploy -N "" -C "vps kine-maxillo"
+   cat ~/.ssh/kine_maxillo_deploy.pub   # à ajouter dans GitHub : repo → Settings → Deploy keys (sans "write access")
+   cat >> ~/.ssh/config <<'CFG'
+   Host github-kine-maxillo
+     HostName github.com
+     User git
+     IdentityFile ~/.ssh/kine_maxillo_deploy
+     IdentitiesOnly yes
+   CFG
+   git clone -b main git@github-kine-maxillo:CharlyBrocard/kine-maxillo.git /var/www/kine-maxillo
+   ```
+2. **Fichier `.env`** : `cp deploy/env.production.example .env`, puis
+   remplir chaque valeur (`chmod 600 .env`). Pour `ADMIN_PASSWORD_HASH`,
+   générer le hash sur le poste de dev (`node -e
+   "require('bcryptjs').hash('<mot de passe>', 10).then(console.log)"`) et
+   le coller **entre apostrophes** (`ADMIN_PASSWORD_HASH='$2b$10$...'`) :
+   docker compose n'interprète pas les `$` entre apostrophes.
+3. **Démarrer** :
+   ```bash
+   cd /var/www/kine-maxillo
+   docker compose -f docker-compose.prod.yml up -d --build
+   docker compose -f docker-compose.prod.yml logs migrate app   # migrations OK, "Ready"
+   curl -sI http://127.0.0.1:3001 | head -1                     # HTTP/1.1 200 OK
+   ```
+4. **Nginx** :
+   ```bash
+   cp deploy/nginx/kine-maxillo-lyon.com.conf /etc/nginx/sites-available/kine-maxillo-lyon.com
+   ln -s /etc/nginx/sites-available/kine-maxillo-lyon.com /etc/nginx/sites-enabled/
+   nginx -t && systemctl reload nginx     # nginx -t AVANT le reload : ne pas casser les autres sites
+   ```
+5. **DNS chez OVH** : enregistrements A de `kine-maxillo-lyon.com` et
+   `www` → IP du VPS (à la place de la page de parking OVH). Pas d'AAAA
+   (pas d'IPv6 sur le VPS). Attendre que `dig +short kine-maxillo-lyon.com`
+   renvoie l'IP du VPS.
+6. **HTTPS** :
+   ```bash
+   certbot --nginx -d kine-maxillo-lyon.com -d www.kine-maxillo-lyon.com
+   ```
+7. **Sauvegardes quotidiennes** (3 h du matin, 14 jours gardés dans
+   `/var/backups/kine-maxillo`) :
+   ```bash
+   (crontab -l 2>/dev/null; echo "0 3 * * * /var/www/kine-maxillo/deploy/backup.sh >> /var/log/kine-maxillo-backup.log 2>&1") | crontab -
+   ```
+   Restauration : `gunzip -c <fichier>.sql.gz | docker compose -f
+   docker-compose.prod.yml exec -T db sh -c 'psql -U "$POSTGRES_USER" -d
+   "$POSTGRES_DB"'` (sur une base vide).
+8. **Brevo** : activer le blocage des IP non autorisées pour les clés API
+   avec l'IPv4 du VPS (voir PROJECT.md, étape 14).
+
+### Mise à jour
+
+```bash
+cd /var/www/kine-maxillo
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
+```

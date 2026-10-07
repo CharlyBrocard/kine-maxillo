@@ -99,8 +99,9 @@ bon nom de domaine une fois le SEO local travaillé.
 - **Email transactionnel** : Brevo (société EU, offre gratuite ~300/jour) —
   pas de SMTP auto-hébergé (problèmes de délivrabilité/réputation IP sur VPS
   générique)
-- **Déploiement** : Docker Compose (app + Postgres) + Caddy (HTTPS auto) sur
-  le VPS existant du dev
+- **Déploiement** : Docker Compose (app + Postgres dédié) derrière le
+  Nginx déjà installé sur le VPS (qui sert d'autres sites), HTTPS via
+  certbot — voir README "Déploiement"
 
 ## Modèle de données
 
@@ -284,9 +285,22 @@ type Mutation {
     anti-double-booking, idempotence confirm/cancel, protection des
     opérations admin) et l'auth. Pas de CI qui les rejoue automatiquement
     pour l'instant — juste `npm test` en local.
-14. Déploiement Docker Compose + Caddy sur le VPS. À prévoir au passage :
-    - une tâche planifiée qui appelle `purgeStaleReasons()` (aujourd'hui
-      seulement déclenchée par le trafic, voir étape 15) ;
+14. Déploiement sur le VPS — **fichiers prêts et testés en local**
+    (`Dockerfile`, `docker-compose.prod.yml`, `deploy/`), procédure dans
+    README "Déploiement". Reste à l'exécuter sur le VPS.
+    - VPS (relevé le 2026-10-07) : Ubuntu 24.04, 1 CPU, 3,8 Go RAM,
+      IPv4 72.60.191.204, pas d'IPv6. Nginx sur l'hôte sert déjà
+      plusieurs sites (certbot pour le HTTPS) ; ports 3000 et 5432 déjà
+      pris → app sur `127.0.0.1:3001`, Postgres dédié sans port publié.
+      Projets dans `/var/www/` → `/var/www/kine-maxillo`.
+    - Déploiement par `git pull` + `docker compose up -d --build` (comme
+      les autres projets du VPS) ; repo privé → clé de déploiement GitHub
+      en lecture seule.
+    - ~~Tâche planifiée de purge du motif~~ — fait :
+      `src/instrumentation.ts` lance expiration + purge toutes les heures
+      dans le serveur de prod ;
+    - Sauvegardes : `deploy/backup.sh` (pg_dump quotidien via cron,
+      14 jours) — copie hors du VPS à prévoir ;
     - **Brevo : activer le blocage des IP non autorisées pour les clés
       API** (Sécurité → Adresses IP autorisées) une fois le VPS en place,
       pour qu'une clé qui fuiterait soit inutilisable ailleurs. Ajouter
@@ -359,7 +373,7 @@ type Mutation {
       Next.js par défaut.
     - URL canonique de prod : `siteConfig.url` =
       `https://kine-maxillo-lyon.com` (sans www) → au déploiement,
-      rediriger `www.` vers ce domaine dans Caddy.
+      `www.` redirigé vers ce domaine par Nginx (`deploy/nginx/`).
 
     À faire / à trancher par l'utilisateur :
     - **Géographie** : Millery est au **sud-ouest** de Lyon (vallée du

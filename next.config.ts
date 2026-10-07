@@ -17,6 +17,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Serveur autonome minimal pour l'image Docker (voir Dockerfile).
+  output: "standalone",
   poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

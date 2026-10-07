@@ -1,6 +1,5 @@
-# Développement local uniquement. Le déploiement VPS (étape 9 du
-# PROJECT.md) utilisera son propre fichier compose avec ses propres
-# identifiants — ne pas réutiliser celui-ci tel quel en production.
+# Développement local uniquement (Postgres de dev). La production utilise
+# docker-compose.prod.yml — voir README "Déploiement".
 services:
   db:
     image: postgres:16-alpine
