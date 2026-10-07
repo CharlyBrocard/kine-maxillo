@@ -5,7 +5,8 @@ Site pour une kinésithérapeute spécialisée en rééducation oro-maxillo-faci
 (Lyon). Objectif : vitrine + prise de RDV ponctuelle, sans compte utilisateur
 patient, backoffice simple pour la kiné.
 
-- Domaine : `kine-maxillo-lyon.com` (dispo chez OVH, réservé)
+- Domaine : `kine-maxillo-lyon.com` (acheté chez OVH ; authentifié dans
+  Brevo — DKIM `brevo1`/`brevo2`, DMARC `p=none` à durcir plus tard)
 - Pas de deadline stricte — dev visé dans les prochains jours
 - DA/maquettes : à faire via Claude (design), pas encore produites
 - Hébergement : VPS existant du dev (pas Vercel), via Docker
@@ -53,8 +54,8 @@ Trois axes de service :
 - ~~Adresse du cabinet~~ — 6 Av. Jacques Nemos, 69390 Millery (ouest
   lyonnais — voir "Priorités absolues" : cohérent avec l'axe SEO)
 - ~~Téléphone~~ — 04 72 30 74 85
-- Email de contact — encore un placeholder
-  (`contact@kine-maxillo-lyon.com`, à confirmer)
+- ~~Email de contact~~ — `contact@kine-maxillo-lyon.com` (redirection OVH
+  vers la Gmail dédiée du cabinet, comme `rendezvous@`)
 - Numéro RPPS/ADELI + SIRET (mentions légales obligatoires, profession de
   santé réglementée par l'Ordre des Masseurs-Kinésithérapeutes)
 - Photos (cabinet, portrait) — placeholders en attendant la DA
@@ -284,8 +285,16 @@ type Mutation {
     opérations admin) et l'auth. Pas de CI qui les rejoue automatiquement
     pour l'instant — juste `npm test` en local.
 14. Déploiement Docker Compose + Caddy sur le VPS. À prévoir au passage :
-    une tâche planifiée qui appelle `purgeStaleReasons()` (aujourd'hui
-    seulement déclenchée par le trafic, voir étape 15).
+    - une tâche planifiée qui appelle `purgeStaleReasons()` (aujourd'hui
+      seulement déclenchée par le trafic, voir étape 15) ;
+    - **Brevo : activer le blocage des IP non autorisées pour les clés
+      API** (Sécurité → Adresses IP autorisées) une fois le VPS en place,
+      pour qu'une clé qui fuiterait soit inutilisable ailleurs. Ajouter
+      l'IPv4 **et** l'IPv6 du VPS (`curl -4 ifconfig.me` / `curl -6
+      ifconfig.me` sur le VPS) — sinon un appel sortant en IPv6 est
+      refusé. Pas avant le déploiement : l'IP de la box en dev change.
+      Symptôme si mal configuré : "Impossible d'envoyer l'email de
+      validation" côté patient, erreur Brevo dans les logs.
 15. ~~Correctifs de sécurité~~ — fait :
     - **Double réservation** : index unique partiel en base
       (`Appointment_active_slot_key` : un seul RDV `PENDING`/`CONFIRMED`
@@ -310,3 +319,25 @@ type Mutation {
     Reste ouvert : formulaire de contact factice (`ContactForm.tsx`, à
     brancher sur l'envoi d'email ou à retirer) et CSP complète (nécessite des
     nonces Next.js).
+16. **Avant la mise en prod — relecture du contenu et vraies images**
+    (à faire par l'utilisateur, avec la praticienne si besoin) :
+    - **Relire le texte de toutes les pages vitrine** (accueil,
+      `/specialites`, `/tarifs`, `/contact`, `/mentions-legales`) : il
+      vient de la maquette et n'a pas été validé. Attention aux
+      affirmations factuelles à confirmer, par exemple "Conventionné
+      secteur 1" (accueil), les horaires (`siteConfig.horaires`) et
+      l'accès PMR (`siteConfig.accesPmr`).
+    - **Remplacer les images placeholder** (`PhotoPlaceholder`) par de
+      vraies photos :
+      - accueil : "photo cabinet / praticienne" (bandeau du haut),
+        "portrait praticienne" ;
+      - `/specialites` : "séance ATM / thérapie manuelle", "salle de
+        rééducation", "bottes de pressothérapie".
+      Photos à fournir avec l'accord des personnes visibles (patients
+      compris) ; prévoir des textes alternatifs (`alt`) descriptifs,
+      utiles aussi pour le SEO.
+    - **Remplacer la carte placeholder** (`MapPlaceholder`, page
+      `/contact`) — par une carte réelle ou un lien vers l'itinéraire.
+      Attention : un iframe Google Maps dépose des cookies tiers →
+      bandeau de consentement nécessaire ; une image statique + lien
+      "Itinéraire" l'évite.
