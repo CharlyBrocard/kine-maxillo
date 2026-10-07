@@ -25,7 +25,10 @@ function requiredEnv(name: string): string {
 }
 
 export async function sendEmail(email: Email): Promise<void> {
-  const apiKey = process.env.BREVO_API_KEY;
+  // Jamais d'envoi réel pendant les tests, même si BREVO_API_KEY traîne
+  // dans l'environnement : le client Prisma charge le .env du projet (où
+  // est la vraie clé) — des tests ont déjà envoyé de vrais emails ainsi.
+  const apiKey = process.env.NODE_ENV === "test" ? undefined : process.env.BREVO_API_KEY;
 
   if (!apiKey) {
     if (process.env.NODE_ENV === "production") {
