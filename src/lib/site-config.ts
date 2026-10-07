@@ -1,6 +1,6 @@
 /**
- * Données du cabinet. Nom, adresse et téléphone sont réels ; le reste
- * (email, RPPS/ADELI, SIRET, tarif pressothérapie, photos) reste
+ * Données du cabinet. Nom, adresse, téléphone et email sont réels ; le
+ * reste (RPPS/ADELI, SIRET, tarif pressothérapie, photos) reste
  * placeholder — voir "Infos encore à récupérer" dans PROJECT.md.
  */
 export const siteConfig = {
@@ -15,7 +15,7 @@ export const siteConfig = {
 
   telephone: "04 72 30 74 85",
   telephoneHref: "tel:+33472307485",
-  // Placeholder — domaine réservé (kine-maxillo-lyon.com), adresse à confirmer.
+  // Redirection OVH vers la Gmail dédiée du cabinet.
   email: "contact@kine-maxillo-lyon.com",
 
   horaires: [{ jours: "Lundi – Vendredi", plage: "8h30 – 18h00" }],
