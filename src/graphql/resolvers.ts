@@ -11,6 +11,14 @@ import { generateToken } from "@/lib/tokens";
 import { assertQueryRange, isWellFormedToken, validatePatientInput } from "@/lib/validation";
 import { hit } from "@/lib/rate-limit";
 import { purgeStaleReasons } from "@/lib/retention";
+import { sendEmail, sendEmailSafely } from "@/lib/email/send";
+import {
+  appointmentConfirmedEmail,
+  cancelledByPractitionerEmail,
+  confirmationRequestEmail,
+  newAppointmentNotification,
+  patientCancellationNotification,
+} from "@/lib/email/templates";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 import type { GraphQLContext } from "@/graphql/context";
 
@@ -22,6 +30,13 @@ import type { GraphQLContext } from "@/graphql/context";
 const BOOKING_LIMIT_WINDOW_MS = 60 * 60_000;
 const BOOKING_LIMIT_PER_IP = 5;
 const BOOKING_LIMIT_PER_EMAIL = 3;
+
+/** Renvois de l'email de validation, par RDV (en plus de la limite par IP). */
+const RESEND_LIMIT_PER_APPOINTMENT = 2;
+
+async function notify(email: Parameters<typeof sendEmailSafely>[0] | null): Promise<void> {
+  if (email) await sendEmailSafely(email);
+}
 
 function tooManyRequests(): GraphQLError {
   return new GraphQLError(
@@ -166,7 +181,23 @@ export const resolvers = {
         throw e;
       }
 
-      return { appointment, confirmationToken, cancellationToken };
+      // Email de validation critique : sans lui le patient ne peut pas
+      // confirmer, donc on libère le créneau tout de suite plutôt que de le
+      // bloquer PENDING_HOLD_MINUTES pour rien.
+      try {
+        await sendEmail(confirmationRequestEmail(appointment, confirmationToken));
+      } catch (e) {
+        console.error("Échec d'envoi de l'email de validation :", e);
+        await prisma.appointment.update({
+          where: { id: appointment.id },
+          data: { status: "EXPIRED", reason: null },
+        });
+        throw new GraphQLError(
+          "Impossible d'envoyer l'email de validation. Réessayez ou appelez le cabinet."
+        );
+      }
+
+      return { appointment };
     },
 
     confirmAppointment: async (_: unknown, { token }: { token: string }) => {
@@ -192,10 +223,17 @@ export const resolvers = {
         );
       }
 
-      const updated = await prisma.appointment.update({
-        where: { id: appointment.id },
+      // updateMany conditionné sur PENDING : si deux clics simultanés
+      // confirment, un seul fait la transition (et envoie les emails).
+      const { count } = await prisma.appointment.updateMany({
+        where: { id: appointment.id, status: "PENDING" },
         data: { status: "CONFIRMED" },
       });
+      const updated = await prisma.appointment.findUniqueOrThrow({ where: { id: appointment.id } });
+      if (count === 1) {
+        await sendEmailSafely(appointmentConfirmedEmail(updated, updated.cancellationToken));
+        await notify(newAppointmentNotification(updated));
+      }
       return { appointment: updated, cancellationToken: updated.cancellationToken };
     },
 
@@ -217,7 +255,38 @@ export const resolvers = {
         where: { id: appointment.id },
         data: { status: "CANCELLED", reason: null },
       });
+      if (appointment.status === "CONFIRMED") {
+        await notify(patientCancellationNotification(updated));
+      }
       return { appointment: updated, cancellationToken: updated.cancellationToken };
+    },
+
+    resendConfirmationEmail: async (
+      _: unknown,
+      { appointmentId }: { appointmentId: string },
+      context: GraphQLContext
+    ) => {
+      if (!hit(`booking:ip:${context.clientIp ?? "unknown"}`, BOOKING_LIMIT_PER_IP, BOOKING_LIMIT_WINDOW_MS)) {
+        throw tooManyRequests();
+      }
+      if (!hit(`resend:${appointmentId}`, RESEND_LIMIT_PER_APPOINTMENT, BOOKING_LIMIT_WINDOW_MS)) {
+        throw tooManyRequests();
+      }
+      await expireStalePendingAppointments();
+
+      const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+      if (!appointment || appointment.status !== "PENDING") {
+        throw new GraphQLError(
+          "Cette demande a expiré ou est déjà traitée. Reprenez rendez-vous ou appelez le cabinet."
+        );
+      }
+      try {
+        await sendEmail(confirmationRequestEmail(appointment, appointment.confirmationToken));
+      } catch (e) {
+        console.error("Échec du renvoi de l'email de validation :", e);
+        throw new GraphQLError("Impossible d'envoyer l'email. Réessayez ou appelez le cabinet.");
+      }
+      return true;
     },
 
     addAvailableSlot: async (
@@ -259,10 +328,19 @@ export const resolvers = {
       context: GraphQLContext
     ) => {
       requireSession(context);
-      return prisma.appointment.update({
+      const appointment = await prisma.appointment.findUnique({ where: { id } });
+      if (!appointment) throw new GraphQLError("Rendez-vous introuvable.");
+      if (appointment.status === "CANCELLED") return appointment;
+
+      const updated = await prisma.appointment.update({
         where: { id },
         data: { status: "CANCELLED", reason: null },
       });
+      // Un RDV PENDING n'a pas encore été validé par le patient : rien à prévenir.
+      if (appointment.status === "CONFIRMED") {
+        await sendEmailSafely(cancelledByPractitionerEmail(updated));
+      }
+      return updated;
     },
   },
 };

@@ -191,17 +191,26 @@ type Mutation {
    semaine par semaine) et réserve via `requestAppointment` ;
    `/rendez-vous/confirmation` et `/rendez-vous/annule` appellent
    réellement `confirmAppointment` / `cancelAppointment` (par token, en
-   lisant `?token=...`). Testé de bout en bout. **Il manque encore l'envoi
-   d'email Brevo** : faute de mieux, l'étape 3 du parcours affiche un lien
-   de démo "Simuler le clic sur le lien de confirmation" à la place de
-   l'email réel — à retirer une fois Brevo branché. La notification à la
-   kiné par email à chaque RDV confirmé n'est pas non plus implémentée.
-6. Envoi d'email réel via Brevo (lien de confirmation au patient,
-   notification à la kiné), à la place du lien de démo de l'étape 3 du
-   parcours `/rendez-vous`. **Indispensable dans la même étape** : retirer
-   `confirmationToken` / `cancellationToken` de `RequestAppointmentPayload`
-   — tant qu'ils sont renvoyés à l'appelant, la vérification par email est
-   contournable (on peut confirmer un RDV avec une adresse fictive).
+   lisant `?token=...`). Testé de bout en bout. Emails : voir étape 6.
+6. ~~Envoi d'email réel via Brevo~~ — fait (code), **reste la config du
+   compte** : appel direct de l'API Brevo (`src/lib/email/send.ts`, sans
+   SDK), contenus dans `src/lib/email/templates.ts`. Sans `BREVO_API_KEY`
+   hors production, les emails sont affichés dans la console du serveur.
+   - Patient : lien de validation à la demande (si l'envoi échoue, le
+     créneau est libéré et une erreur est affichée), récapitulatif + lien
+     d'annulation une fois confirmé, avis d'annulation si la praticienne
+     annule un RDV confirmé. Bouton "Renvoyer l'email" réel
+     (`resendConfirmationEmail`, 2 renvois max par RDV).
+   - Praticienne (`PRACTITIONER_NOTIFICATION_EMAIL`) : chaque RDV confirmé
+     et chaque annulation par un patient.
+   - Le motif n'est dans **aucun** email (donnée de santé, boîte mail
+     tierce) : la praticienne le lit dans le backoffice.
+   - Les tokens ne sont plus renvoyés par `requestAppointment` (ils ne
+     partent que par email) et le lien de démo est retiré.
+   - Config prévue : compte Brevo créé avec une Gmail dédiée ; expéditeur
+     sur le domaine (`EMAIL_FROM`, domaine authentifié dans Brevo via
+     DKIM/SPF/DMARC chez OVH — jamais une adresse @gmail.com) ; réponses
+     des patients (`EMAIL_REPLY_TO`) et notifications vers la Gmail.
 7. ~~Auth NextAuth (mono-compte praticienne)~~ — fait : Credentials
    provider (`src/lib/auth.ts`), identifiants dans `ADMIN_EMAIL` /
    `ADMIN_PASSWORD_HASH` (pas de table `User` — un seul compte, comme
@@ -299,5 +308,5 @@ type Mutation {
       `Referrer-Policy: no-referrer` (les liens de confirmation portent
       un token), HSTS, nosniff, `x-powered-by` retiré.
     Reste ouvert : formulaire de contact factice (`ContactForm.tsx`, à
-    brancher avec Brevo ou à retirer) et CSP complète (nécessite des
+    brancher sur l'envoi d'email ou à retirer) et CSP complète (nécessite des
     nonces Next.js).

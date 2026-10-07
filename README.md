@@ -25,11 +25,9 @@ créneaux sont ouverts un par un par la praticienne (voir PROJECT.md,
   choisit en premier (les créneaux disponibles en dépendent), puis les
   créneaux chargés en direct (`availableSlots`), réservation
   (`requestAppointment`, hold `PENDING` anti-double-booking), puis
-  "vérifiez votre email" avec un lien de démo (pas d'envoi Brevo pour
-  l'instant — voir plus bas) vers `/rendez-vous/confirmation?token=...`,
-  qui appelle réellement `confirmAppointment` ; le lien "Annuler ce
-  rendez-vous" qui y apparaît appelle réellement `cancelAppointment` sur
-  `/rendez-vous/annule`
+  "vérifiez votre email" : le lien reçu par email mène à
+  `/rendez-vous/confirmation?token=...` (`confirmAppointment`), le lien
+  d'annulation à `/rendez-vous/annule?token=...` (`cancelAppointment`)
 - `/espace` — **connexion réelle** (NextAuth, mono-compte praticienne
   défini par `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH`) → `/espace/agenda` et
   `/espace/disponibilites`, protégés (redirigent vers `/espace` sans
@@ -61,9 +59,11 @@ limitation de débit en mémoire (`src/lib/rate-limit.ts`) sur la prise de
 RDV et la connexion, purge du motif (`src/lib/retention.ts`), en-têtes de
 sécurité (`next.config.ts`), introspection GraphQL coupée en production.
 
-Pas d'envoi d'email réel (Brevo) : le parcours `/rendez-vous` affiche à
-l'étape 3 un lien "Simuler le clic sur le lien de confirmation", clairement
-identifié comme un raccourci de démo, en attendant le branchement Brevo.
+Emails transactionnels via l'API Brevo (`src/lib/email/`, variables dans
+`.env.example`). **En dev, sans `BREVO_API_KEY`, rien n'est envoyé** : les
+emails (avec les liens de validation/annulation) s'affichent dans la
+console de `npm run dev` — copier le lien de validation depuis là pour
+tester le parcours.
 
 Les informations du cabinet (nom, adresse, RPPS/ADELI, SIRET, tarif
 pressothérapie) sont des placeholders repris de la maquette, centralisés

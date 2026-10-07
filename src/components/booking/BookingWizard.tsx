@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Stepper } from "@/components/booking/Stepper";
 import { Button } from "@/components/ui/Button";
@@ -46,13 +45,17 @@ const REQUEST_APPOINTMENT_MUTATION = /* GraphQL */ `
         slotStart
         slotEnd
       }
-      confirmationToken
     }
   }
 `;
 
+const RESEND_CONFIRMATION_MUTATION = /* GraphQL */ `
+  mutation ResendConfirmationEmail($appointmentId: ID!) {
+    resendConfirmationEmail(appointmentId: $appointmentId)
+  }
+`;
+
 export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryId }) {
-  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [category, setCategory] = useState<CategoryId | null>(categoryInitial ?? null);
 
@@ -69,8 +72,9 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [resent, setResent] = useState(false);
-  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const weekStart = useMemo(
     () => addUTCDays(startOfUTCDay(new Date()), weekOffset * 7),
@@ -151,7 +155,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
       const label = categoryLabel(category);
       const reason = message.trim() ? `${label} — ${message.trim()}` : label;
       const data = await gqlRequest<{
-        requestAppointment: { confirmationToken: string };
+        requestAppointment: { appointment: { id: string } };
       }>(REQUEST_APPOINTMENT_MUTATION, {
         input: {
           slotStart: selectedSlot.start,
@@ -162,7 +166,9 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
           reason,
         },
       });
-      setConfirmationToken(data.requestAppointment.confirmationToken);
+      setAppointmentId(data.requestAppointment.appointment.id);
+      setResendState("idle");
+      setResendError(null);
       setStep(3);
     } catch (err) {
       setSubmitError(
@@ -172,6 +178,21 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!appointmentId) return;
+    setResendState("sending");
+    setResendError(null);
+    try {
+      await gqlRequest(RESEND_CONFIRMATION_MUTATION, { appointmentId });
+      setResendState("sent");
+    } catch (err) {
+      setResendState("idle");
+      setResendError(
+        err instanceof GraphQLRequestError ? err.message : "Impossible de renvoyer l'email. Réessayez."
+      );
     }
   }
 
@@ -481,34 +502,26 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
               {siteConfig.adresseLigne1}, {siteConfig.ville}
             </div>
           </div>
+          {resendError && (
+            <div className="w-full rounded-xl bg-terracotta-soft px-5 py-4 text-[15px] text-terracotta-ink">
+              {resendError}
+            </div>
+          )}
           <Button
             variant="secondary"
             className="w-full"
-            onClick={() => setResent(true)}
+            disabled={resendState !== "idle"}
+            onClick={resendConfirmation}
           >
-            {resent ? "Email renvoyé" : "Renvoyer l'email"}
+            {resendState === "sent"
+              ? "Email renvoyé"
+              : resendState === "sending"
+                ? "Envoi…"
+                : "Renvoyer l'email"}
           </Button>
           <span className="text-sm text-muted">
             Rien reçu ? Vérifiez vos spams ou appelez le {siteConfig.telephone}.
           </span>
-
-          <div className="mt-2 w-full border-t border-dashed border-border-strong pt-5">
-            <p className="mb-2 text-xs text-faint">
-              Démo — l&apos;envoi d&apos;email (Brevo) n&apos;est pas encore
-              branché. Dans la version finale, ce bouton n&apos;existe pas :
-              le lien reçu par email confirme directement le rendez-vous.
-            </p>
-            <button
-              type="button"
-              onClick={() =>
-                confirmationToken &&
-                router.push(`/rendez-vous/confirmation?token=${confirmationToken}`)
-              }
-              className="text-sm font-semibold text-accent underline"
-            >
-              Simuler le clic sur le lien de confirmation →
-            </button>
-          </div>
         </div>
       )}
     </div>

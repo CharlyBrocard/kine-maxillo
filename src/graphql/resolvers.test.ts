@@ -4,6 +4,8 @@ import { graphql, type GraphQLError } from "graphql";
 import { schema } from "@/graphql/schema";
 import { prisma } from "@/lib/prisma";
 import { createAppointment, createSlot, futureDate } from "@/test-support/factories";
+import { devOutbox } from "@/lib/email/send";
+import * as emailSend from "@/lib/email/send";
 import type { GraphQLContext } from "@/graphql/context";
 
 const DAY = 24 * 60 * 60_000;
@@ -49,17 +51,13 @@ describe("availableSlots (public)", () => {
 });
 
 describe("requestAppointment", () => {
-  it("books an open slot and returns tokens", async () => {
+  it("books an open slot, emails the confirmation link and never returns the tokens", async () => {
     const start = futureDate(DAY);
     await createSlot(start, "PRESSOTHERAPIE");
 
     const result = await exec(
       `mutation($input: RequestAppointmentInput!) {
-        requestAppointment(input: $input) {
-          appointment { status category }
-          confirmationToken
-          cancellationToken
-        }
+        requestAppointment(input: $input) { appointment { id status category } }
       }`,
       {
         input: {
@@ -74,15 +72,27 @@ describe("requestAppointment", () => {
 
     expect(result.errors).toBeUndefined();
     const payload = result.data?.requestAppointment as {
-      appointment: { status: string; category: string };
-      confirmationToken: string;
-      cancellationToken: string;
+      appointment: { id: string; status: string; category: string };
     };
     expect(payload.appointment.status).toBe("PENDING");
     expect(payload.appointment.category).toBe("PRESSOTHERAPIE");
-    expect(payload.confirmationToken).toMatch(/^[0-9a-f]{64}$/);
-    expect(payload.cancellationToken).toMatch(/^[0-9a-f]{64}$/);
-    expect(payload.confirmationToken).not.toBe(payload.cancellationToken);
+    expect(JSON.stringify(result.data)).not.toMatch(/[0-9a-f]{64}/);
+
+    const stored = await prisma.appointment.findUniqueOrThrow({ where: { id: payload.appointment.id } });
+    expect(devOutbox).toHaveLength(1);
+    expect(devOutbox[0].to).toBe("marie@example.com");
+    expect(devOutbox[0].text).toContain(`/rendez-vous/confirmation?token=${stored.confirmationToken}`);
+    expect(devOutbox[0].text).not.toContain(stored.cancellationToken);
+  });
+
+  it("rejects querying tokens on the request payload", async () => {
+    const result = await exec(
+      `mutation($input: RequestAppointmentInput!) {
+        requestAppointment(input: $input) { confirmationToken }
+      }`,
+      { input: bookingInput(futureDate(DAY)) }
+    );
+    expect(result.errors?.[0]?.message).toMatch(/confirmationToken/);
   });
 
   it("rejects double-booking the same slot", async () => {
@@ -559,5 +569,122 @@ describe("token format", () => {
       { token: "' OR 1=1 --" }
     );
     expect(firstErrorMessage(cancel)).toBe("Lien d'annulation invalide.");
+  });
+});
+
+describe("emails", () => {
+  it("frees the slot and reports an error when the confirmation email cannot be sent", async () => {
+    const start = futureDate(DAY);
+    await createSlot(start, "MAXILLO_FACIAL");
+    const spy = vi.spyOn(emailSend, "sendEmail").mockRejectedValueOnce(new Error("Brevo down"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await exec(REQUEST_MUTATION, { input: bookingInput(start) });
+
+    spy.mockRestore();
+    errorLog.mockRestore();
+    expect(firstErrorMessage(result)).toMatch(/Impossible d'envoyer l'email de validation/);
+    const stored = await prisma.appointment.findFirstOrThrow();
+    expect(stored.status).toBe("EXPIRED");
+    expect(stored.reason).toBeNull();
+  });
+
+  it("on confirmation, emails the patient (with cancel link) and the practitioner, once", async () => {
+    process.env.PRACTITIONER_NOTIFICATION_EMAIL = "cabinet@example.com";
+    const appt = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      patientName: "Marie <b>Curie</b>",
+      reason: "douleur ATM",
+    });
+    const confirm = () =>
+      exec(
+        `mutation($token: String!) { confirmAppointment(token: $token) { appointment { status } } }`,
+        { token: appt.confirmationToken }
+      );
+
+    await Promise.all([confirm(), confirm()]);
+    await confirm();
+    delete process.env.PRACTITIONER_NOTIFICATION_EMAIL;
+
+    expect(devOutbox.map((e) => e.to).sort()).toEqual(["cabinet@example.com", "test@example.com"]);
+    const patientEmail = devOutbox.find((e) => e.to === "test@example.com")!;
+    expect(patientEmail.text).toContain(`/rendez-vous/annule?token=${appt.cancellationToken}`);
+    // Motif jamais envoyé par email, et contenu patient échappé dans le HTML.
+    for (const e of devOutbox) {
+      expect(e.text).not.toContain("douleur ATM");
+      expect(e.html).not.toContain("douleur ATM");
+      expect(e.html).not.toContain("<b>Curie</b>");
+    }
+  });
+
+  it("skips the practitioner notification when no recipient is configured", async () => {
+    const appt = await createAppointment({ slotStart: futureDate(DAY), category: "MAXILLO_FACIAL" });
+    await exec(
+      `mutation($token: String!) { confirmAppointment(token: $token) { appointment { status } } }`,
+      { token: appt.confirmationToken }
+    );
+    expect(devOutbox.map((e) => e.to)).toEqual(["test@example.com"]);
+  });
+
+  it("notifies the practitioner when a patient cancels a confirmed appointment", async () => {
+    process.env.PRACTITIONER_NOTIFICATION_EMAIL = "cabinet@example.com";
+    const appt = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      status: "CONFIRMED",
+    });
+    await exec(
+      `mutation($token: String!) { cancelAppointment(token: $token) { appointment { status } } }`,
+      { token: appt.cancellationToken }
+    );
+    delete process.env.PRACTITIONER_NOTIFICATION_EMAIL;
+    expect(devOutbox.map((e) => e.to)).toEqual(["cabinet@example.com"]);
+  });
+
+  it("emails the patient when the practitioner cancels a confirmed appointment, not a pending one", async () => {
+    const confirmed = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      status: "CONFIRMED",
+      patientEmail: "confirmed@example.com",
+    });
+    const pending = await createAppointment({
+      slotStart: futureDate(2 * DAY),
+      category: "MAXILLO_FACIAL",
+      status: "PENDING",
+      patientEmail: "pending@example.com",
+    });
+    for (const id of [confirmed.id, pending.id]) {
+      await exec(`mutation($id: ID!) { cancelAppointmentAsAdmin(id: $id) { status } }`, { id }, authed);
+    }
+    expect(devOutbox.map((e) => e.to)).toEqual(["confirmed@example.com"]);
+  });
+});
+
+describe("resendConfirmationEmail", () => {
+  const RESEND = `mutation($id: ID!) { resendConfirmationEmail(appointmentId: $id) }`;
+
+  it("resends the link of a pending appointment, at most twice", async () => {
+    const appt = await createAppointment({ slotStart: futureDate(DAY), category: "MAXILLO_FACIAL" });
+
+    expect((await exec(RESEND, { id: appt.id })).data?.resendConfirmationEmail).toBe(true);
+    expect((await exec(RESEND, { id: appt.id })).data?.resendConfirmationEmail).toBe(true);
+    const third = await exec(RESEND, { id: appt.id });
+
+    expect(third.errors?.[0]?.extensions?.code).toBe("TOO_MANY_REQUESTS");
+    expect(devOutbox).toHaveLength(2);
+    expect(devOutbox[0].text).toContain(appt.confirmationToken);
+  });
+
+  it("refuses for a confirmed or unknown appointment", async () => {
+    const appt = await createAppointment({
+      slotStart: futureDate(DAY),
+      category: "MAXILLO_FACIAL",
+      status: "CONFIRMED",
+    });
+    expect((await exec(RESEND, { id: appt.id })).errors).toBeDefined();
+    expect((await exec(RESEND, { id: "inconnu" })).errors).toBeDefined();
+    expect(devOutbox).toHaveLength(0);
   });
 });

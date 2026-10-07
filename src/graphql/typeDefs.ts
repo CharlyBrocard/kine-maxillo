@@ -60,15 +60,12 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  confirmationToken / cancellationToken ne sont renvoyés qu'ici, à la
-  création. Tant que l'envoi d'email (Brevo) n'est pas branché, ils
-  servent aussi à tester confirmAppointment / cancelAppointment sans
-  email réel.
+  Volontairement sans confirmationToken / cancellationToken : ils ne
+  partent que par email, sinon la vérification de l'adresse serait
+  contournable (confirmer un RDV avec une adresse fictive).
   """
   type RequestAppointmentPayload {
     appointment: Appointment!
-    confirmationToken: String!
-    cancellationToken: String!
   }
 
   input RequestAppointmentInput {
@@ -98,6 +95,11 @@ export const typeDefs = /* GraphQL */ `
     requestAppointment(input: RequestAppointmentInput!): RequestAppointmentPayload!
     confirmAppointment(token: String!): AppointmentPayload!
     cancelAppointment(token: String!): AppointmentPayload!
+    """
+    Renvoie l'email de validation d'un RDV encore PENDING (bouton "Renvoyer
+    l'email" du parcours). Toujours vers l'adresse saisie à la demande.
+    """
+    resendConfirmationEmail(appointmentId: ID!): Boolean!
 
     "Authentifié (mono-compte praticienne, NextAuth) — voir PROJECT.md."
     addAvailableSlot(input: AddAvailableSlotInput!): AvailableSlot!

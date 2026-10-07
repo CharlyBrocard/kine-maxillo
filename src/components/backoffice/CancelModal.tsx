@@ -56,7 +56,8 @@ export function CancelModal({
 
         <p className="text-[15px] leading-relaxed text-body">
           Le créneau sera immédiatement libéré et redeviendra disponible à la
-          réservation.
+          réservation. Si le rendez-vous était confirmé, le patient est
+          prévenu par email.
         </p>
 
         {error && (
