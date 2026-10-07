@@ -316,9 +316,11 @@ type Mutation {
     - **En-têtes HTTP** (`next.config.ts`) : anti-clickjacking,
       `Referrer-Policy: no-referrer` (les liens de confirmation portent
       un token), HSTS, nosniff, `x-powered-by` retiré.
-    Reste ouvert : formulaire de contact factice (`ContactForm.tsx`, à
-    brancher sur l'envoi d'email ou à retirer) et CSP complète (nécessite des
-    nonces Next.js).
+    Reste ouvert : CSP complète (nécessite des nonces Next.js). Le
+    formulaire de contact factice (`ContactForm.tsx`) a été supprimé
+    plutôt que branché : `/contact` affiche téléphone + email cliquable
+    (`mailto:`), suffisant pour le volume du cabinet et sans nouvelle
+    surface d'attaque (spam, données patient en clair par email).
 16. **Avant la mise en prod — relecture du contenu et vraies images**
     (à faire par l'utilisateur, avec la praticienne si besoin) :
     - **Relire le texte de toutes les pages vitrine** (accueil,

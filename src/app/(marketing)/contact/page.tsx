@@ -1,6 +1,5 @@
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
-import { ContactForm } from "@/components/marketing/ContactForm";
 import { MapPlaceholder } from "@/components/marketing/MapPlaceholder";
 import { siteConfig } from "@/lib/site-config";
 
@@ -53,7 +52,12 @@ export default function ContactPage() {
               </InfoBlock>
 
               <InfoBlock label="Email">
-                <span className="text-lg">{siteConfig.email}</span>
+                <a
+                  href={`mailto:${siteConfig.email}`}
+                  className="text-lg underline decoration-border-strong underline-offset-4 hover:text-accent"
+                >
+                  {siteConfig.email}
+                </a>
               </InfoBlock>
 
               <InfoBlock label="Horaires">
@@ -75,10 +79,7 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-5">
-            <MapPlaceholder />
-            <ContactForm />
-          </div>
+          <MapPlaceholder />
         </div>
       </section>
     </div>
