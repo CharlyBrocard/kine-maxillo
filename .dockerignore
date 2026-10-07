@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+coverage
+*.md
+!README.md
+deploy
+tests
+**/*.test.ts
+src/test-support

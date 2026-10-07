@@ -1,0 +1,64 @@
+// Modèle de données — voir "Modèle de données" dans PROJECT.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Category {
+  MAXILLO_FACIAL
+  PRESSOTHERAPIE
+}
+
+/// Créneau ouvert manuellement par la praticienne — pas de récurrence
+/// (voir "Décisions produit" dans PROJECT.md) : chaque créneau est ajouté
+/// un par un, avec sa catégorie. Durée fixe (SLOT_DURATION_MINUTES).
+model AvailableSlot {
+  id       String   @id @default(cuid())
+  start    DateTime
+  category Category
+
+  createdAt DateTime @default(now())
+
+  @@unique([start, category])
+  @@index([start])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+model Appointment {
+  id String @id @default(cuid())
+
+  slotStart DateTime
+  slotEnd   DateTime
+  category  Category
+
+  patientName  String
+  patientPhone String
+  patientEmail String
+  /// Motif de consultation — donnée potentiellement sensible (voir PROJECT.md) :
+  /// à minimiser et purger après le délai retenu, pas seulement soft-delete.
+  reason       String?
+
+  status AppointmentStatus @default(PENDING)
+
+  confirmationToken String   @unique
+  cancellationToken String   @unique
+  /// Expiration du statut PENDING (créneau libéré automatiquement si non confirmé).
+  expiresAt         DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slotStart])
+  @@index([status])
+}
