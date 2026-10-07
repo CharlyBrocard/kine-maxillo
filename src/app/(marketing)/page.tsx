@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/marketing/Header";
 import { Pill } from "@/components/ui/Pill";
@@ -29,6 +30,14 @@ const axes = [
     href: "/tarifs",
   },
 ];
+
+export const metadata: Metadata = {
+  title: {
+    absolute: `Kiné maxillo-faciale à ${siteConfig.ville} (Lyon) | ${siteConfig.praticienne}`,
+  },
+  description: `Kiné spécialisée en rééducation maxillo-faciale à ${siteConfig.ville}, près de Lyon : douleurs de l'ATM, bruxisme, chirurgie orthognathique. RDV en ligne.`,
+  alternates: { canonical: "/" },
+};
 
 export default function AccueilPage() {
   return (

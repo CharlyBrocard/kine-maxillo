@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
 import { MapPlaceholder } from "@/components/marketing/MapPlaceholder";
@@ -17,6 +18,12 @@ function InfoBlock({
     </div>
   );
 }
+
+export const metadata: Metadata = {
+  title: "Contact et accès au cabinet",
+  description: `Cabinet de kinésithérapie maxillo-faciale : ${siteConfig.adresseLigne1}, ${siteConfig.adresseLigne2}. ${siteConfig.accesPmr}. Téléphone ${siteConfig.telephone}.`,
+  alternates: { canonical: "/contact" },
+};
 
 export default function ContactPage() {
   return (

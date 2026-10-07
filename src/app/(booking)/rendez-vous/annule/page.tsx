@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AnnuleClient } from "@/components/booking/AnnuleClient";
+
+/** Page à token (lien reçu par email) : jamais indexée, aussi exclue dans robots.ts. */
+export const metadata: Metadata = {
+  title: "Annulation du rendez-vous",
+  robots: { index: false, follow: false },
+};
 
 export default function AnnulePage() {
   return (

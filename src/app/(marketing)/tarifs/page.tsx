@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
 import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
+
+export const metadata: Metadata = {
+  title: "Tarifs pressothérapie et rééducation",
+  description: `Séances de rééducation au tarif conventionné, remboursées par l'Assurance Maladie. Pressothérapie (drainage lymphatique par bottes) : ${siteConfig.tarifPresso} la séance à ${siteConfig.ville}.`,
+  alternates: { canonical: "/tarifs" },
+};
 
 export default function TarifsPage() {
   return (

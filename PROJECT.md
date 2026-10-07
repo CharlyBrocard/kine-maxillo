@@ -343,3 +343,45 @@ type Mutation {
       Attention : un iframe Google Maps dépose des cookies tiers →
       bandeau de consentement nécessaire ; une image statique + lien
       "Itinéraire" l'évite.
+17. ~~SEO technique~~ — fait :
+    - Titre, description et URL canonique propres à chaque page vitrine
+      (titres < 60 caractères, descriptions < 160) ; modèle de titre
+      `<page> | Kiné à Millery` (`src/app/layout.tsx`).
+    - `sitemap.xml` et `robots.txt` générés (`src/app/sitemap.ts`,
+      `src/app/robots.ts`). `/espace`, `/api` et les pages à token
+      (`/rendez-vous/confirmation`, `/rendez-vous/annule`) exclus et en
+      `noindex` — un robot qui exécute le JavaScript confirmerait ou
+      annulerait un RDV en visitant ces pages.
+    - Données structurées schema.org `Physiotherapy` (adresse, horaires,
+      téléphone, communes desservies, prise de RDV en ligne) sur toutes
+      les pages vitrine (`src/lib/structured-data.ts`).
+    - Favicon : monogramme "JR" (`src/app/icon.svg`) à la place du logo
+      Next.js par défaut.
+    - URL canonique de prod : `siteConfig.url` =
+      `https://kine-maxillo-lyon.com` (sans www) → au déploiement,
+      rediriger `www.` vers ce domaine dans Caddy.
+
+    À faire / à trancher par l'utilisateur :
+    - **Géographie** : Millery est au **sud-ouest** de Lyon (vallée du
+      Garon), pas dans l'"ouest lyonnais" au sens courant (Tassin,
+      Écully, Craponne, Charbonnières). Les recherches locales ciblent
+      donc plutôt Brignais, Vourles, Charly, Grigny, Chaponost,
+      Saint-Genis-Laval, Oullins. Liste à valider dans
+      `siteConfig.communesProches` ; `siteConfig.zone` ("Ouest
+      lyonnais", affiché sur le site) à corriger le cas échéant.
+    - **Fiche Google Business Profile** : le levier n°1 du SEO local
+      (carte Google, "kiné près de moi"). Vérifier que nom, adresse et
+      téléphone y sont **strictement identiques** au site, y ajouter
+      l'URL du site et le lien de RDV. Ensuite, ajouter l'URL de la
+      fiche dans les données structurées (`sameAs`).
+    - **Google Search Console** : après la mise en ligne, valider le
+      domaine (enregistrement TXT chez OVH) et soumettre
+      `https://kine-maxillo-lyon.com/sitemap.xml`. Tester les données
+      structurées avec le Rich Results Test de Google.
+    - **Contenu** (avec l'étape 16) : le titre H1 de l'accueil ("Retrouver
+      une mâchoire libre…") ne contient aucun mot-clé ; en garder l'esprit
+      mais y intégrer "kinésithérapeute maxillo-faciale" et la ville
+      aiderait. Idem pour le H1 de `/specialites` ("Ce que je prends en
+      charge").
+    - **Image de partage** (Open Graph) : à créer une fois les vraies
+      photos disponibles (aperçu du lien sur WhatsApp, Facebook…).

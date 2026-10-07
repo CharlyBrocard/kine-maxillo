@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
+import { siteConfig } from "@/lib/site-config";
 import { BookingWizard } from "@/components/booking/BookingWizard";
 import type { CategoryId } from "@/lib/categories";
+
+export const metadata: Metadata = {
+  title: "Prendre rendez-vous en ligne",
+  description: `Réservez en ligne votre séance de rééducation maxillo-faciale ou de pressothérapie au cabinet de ${siteConfig.ville}, sans créer de compte. Confirmation par email.`,
+  alternates: { canonical: "/rendez-vous" },
+};
 
 export default async function RendezVousPage({
   searchParams,

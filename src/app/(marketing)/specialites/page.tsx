@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { siteConfig } from "@/lib/site-config";
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
 import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
@@ -12,6 +14,12 @@ function Bullet({ children, tone = "sauge" }: { children: React.ReactNode; tone?
     </div>
   );
 }
+
+export const metadata: Metadata = {
+  title: "Rééducation ATM et maxillo-faciale",
+  description: `ATM, bruxisme, chirurgie orthognathique, déglutition, rééducation post-opératoire et pressothérapie : les prises en charge du cabinet de ${siteConfig.ville}.`,
+  alternates: { canonical: "/specialites" },
+};
 
 export default function SpecialitesPage() {
   return (

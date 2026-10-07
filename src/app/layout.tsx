@@ -22,9 +22,26 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+/**
+ * Métadonnées par défaut. Chaque page indexable définit son titre, sa
+ * description et son URL canonique (pas de canonical ici : elle serait
+ * héritée par les pages qui n'en définissent pas).
+ */
 export const metadata: Metadata = {
-  title: `${siteConfig.praticienne} — Kinésithérapie maxillo-faciale à ${siteConfig.ville}`,
-  description: `Rééducation oro-maxillo-faciale, ATM et drainage lymphatique par pressothérapie. Cabinet à ${siteConfig.ville}, ${siteConfig.zone}.`,
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: `Kiné maxillo-faciale à ${siteConfig.ville} | ${siteConfig.praticienne}`,
+    // Court : Google tronque les titres vers 60 caractères.
+    template: `%s | Kiné à ${siteConfig.ville}`,
+  },
+  description: `Rééducation oro-maxillo-faciale, ATM et drainage lymphatique par pressothérapie. Cabinet à ${siteConfig.ville}, près de Lyon.`,
+  applicationName: siteConfig.praticienne,
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: `${siteConfig.praticienne} — Kinésithérapeute`,
+  },
+  formatDetection: { telephone: true, email: true, address: true },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ConfirmationClient } from "@/components/booking/ConfirmationClient";
+
+/** Page à token (lien reçu par email) : jamais indexée, aussi exclue dans robots.ts. */
+export const metadata: Metadata = {
+  title: "Confirmation du rendez-vous",
+  robots: { index: false, follow: false },
+};
 
 export default function ConfirmationPage() {
   return (

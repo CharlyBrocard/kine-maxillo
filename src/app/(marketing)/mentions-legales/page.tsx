@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/marketing/Header";
 import { siteConfig } from "@/lib/site-config";
 
@@ -19,6 +20,12 @@ function Section({
     </div>
   );
 }
+
+export const metadata: Metadata = {
+  title: "Mentions légales",
+  description: `Mentions légales et politique de confidentialité du site de ${siteConfig.praticienne}, kinésithérapeute à ${siteConfig.ville}.`,
+  alternates: { canonical: "/mentions-legales" },
+};
 
 export default function MentionsLegalesPage() {
   return (

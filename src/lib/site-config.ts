@@ -4,12 +4,17 @@
  * placeholder — voir "Infos encore à récupérer" dans PROJECT.md.
  */
 export const siteConfig = {
+  /** URL canonique de production (SEO : canonical, sitemap, données structurées). */
+  url: "https://kine-maxillo-lyon.com",
+
   praticienne: "Johanna Rouzier",
   qualification: "Masseur-kinésithérapeute D.E.",
   ville: "Millery",
 
   adresseLigne1: "6 Av. Jacques Nemos",
   adresseLigne2: "69390 Millery",
+  codePostal: "69390",
+  region: "Auvergne-Rhône-Alpes",
   zone: "Ouest lyonnais",
   accesPmr: "Rez-de-chaussée, accès PMR",
 
@@ -19,6 +24,31 @@ export const siteConfig = {
   email: "contact@kine-maxillo-lyon.com",
 
   horaires: [{ jours: "Lundi – Vendredi", plage: "8h30 – 18h00" }],
+  /** Mêmes horaires, au format schema.org (données structurées). À garder alignés. */
+  horairesStructures: [
+    {
+      jours: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      ouverture: "08:30",
+      fermeture: "18:00",
+    },
+  ],
+  /**
+   * Communes proches du cabinet (SEO local : données structurées
+   * "areaServed"). À valider — voir étape SEO dans PROJECT.md.
+   */
+  communesProches: [
+    "Millery",
+    "Vourles",
+    "Charly",
+    "Grigny",
+    "Montagny",
+    "Brignais",
+    "Irigny",
+    "Saint-Genis-Laval",
+    "Chaponost",
+    "Oullins-Pierre-Bénite",
+    "Lyon",
+  ],
 
   rpps: "10100200300",
   adeli: "699912345",
