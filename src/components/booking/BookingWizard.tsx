@@ -465,7 +465,16 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
               <span className="max-w-xl text-[15px] leading-relaxed text-body">
                 J&apos;accepte que mes données soient utilisées pour la
                 gestion de ce rendez-vous. Elles ne sont ni revendues ni
-                utilisées à des fins commerciales.
+                utilisées à des fins commerciales —{" "}
+                <a
+                  href="/confidentialite"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-4"
+                >
+                  politique de confidentialité
+                </a>
+                .
               </span>
             </label>
             <div className="flex items-center gap-3.5">

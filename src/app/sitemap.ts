@@ -10,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/tarifs", priority: 0.7 },
     { path: "/contact", priority: 0.7 },
     { path: "/mentions-legales", priority: 0.2 },
+    { path: "/confidentialite", priority: 0.2 },
   ];
   return pages.map(({ path, priority }) => ({
     url: `${siteConfig.url}${path}`,

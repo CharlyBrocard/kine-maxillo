@@ -384,6 +384,27 @@ type Mutation {
       (idéalement côté entrée/école). À mentionner dans la politique de
       confidentialité : la carte charge des tuiles depuis les serveurs
       d'OpenStreetMap (adresse IP du visiteur transmise).
+19. ~~Politique de confidentialité~~ — fait (2026-10-08) : page
+    `/confidentialite` (liée depuis le pied de page, la case de
+    consentement du formulaire de RDV, les mentions légales et le
+    sitemap), rédigée d'après le fonctionnement réel : données, bases
+    légales (6.1.b, 9.2.h pour le motif, 6.1.f sécurité), durées,
+    destinataires (hébergeur, Brevo sans le motif, OpenStreetMap),
+    cookies (aucun côté visiteurs — vérifié), droits, CNIL.
+    - **Nouvelle purge des RDV** (`purgeExpiredAppointments`) pour
+      respecter les durées annoncées : demandes jamais confirmées
+      supprimées 30 jours après la demande, tous les RDV 12 mois après
+      leur date (`UNCONFIRMED_RETENTION_DAYS`,
+      `APPOINTMENT_RETENTION_DAYS`). Avant : coordonnées conservées
+      indéfiniment. **Durées à valider avec la praticienne.**
+    - Logs Docker de prod bornés (rotation 3 × 10 Mo).
+    - À compléter / vérifier avant mise en ligne : coordonnées de
+      l'hébergeur (Hostinger) dans les mentions légales, et localisation
+      du datacenter du VPS (UE ?) ; durée de rotation des logs Nginx sur
+      le VPS (`/etc/logrotate.d/nginx`, "quelques semaines" annoncé) ;
+      relecture du texte (idéalement par la praticienne, voire un
+      juriste — ce n'est pas un avis juridique).
+
 18. ~~Fuseau horaire~~ — fait (2026-10-08) : les dates sont désormais de
     vrais instants UTC, et tout ce qui dépend du calendrier (jour,
     semaine, heure affichée ou saisie) est calculé en Europe/Paris, heure

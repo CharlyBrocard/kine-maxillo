@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Header } from "@/components/marketing/Header";
 import { siteConfig } from "@/lib/site-config";
@@ -68,21 +69,12 @@ export default function MentionsLegalesPage() {
 
           <Section id="confidentialite" title="Politique de confidentialité">
             <p>
-              Les données transmises via le formulaire de contact et le
-              parcours de prise de rendez-vous (nom, téléphone, email et,
-              le cas échéant, motif de consultation) sont utilisées
-              exclusivement pour la gestion des rendez-vous et ne sont ni
-              cédées ni utilisées à des fins commerciales.
-            </p>
-            <p>
-              Le motif de consultation, susceptible de révéler des
-              informations de santé, est conservé pour la durée strictement
-              nécessaire au suivi du rendez-vous puis purgé.
-            </p>
-            <p>
-              Conformément au RGPD, vous disposez d&apos;un droit
-              d&apos;accès, de rectification et de suppression de vos
-              données en écrivant à {siteConfig.email}.
+              Les données collectées lors de la prise de rendez-vous, leurs
+              durées de conservation et vos droits sont détaillés dans la{" "}
+              <Link href="/confidentialite" className="underline underline-offset-4">
+                politique de confidentialité
+              </Link>
+              .
             </p>
           </Section>
 
