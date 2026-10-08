@@ -166,16 +166,97 @@ les heures dans le serveur (`src/instrumentation.ts`).
    ```bash
    (crontab -l 2>/dev/null; echo "0 3 * * * /var/www/kine-maxillo/deploy/backup.sh >> /var/log/kine-maxillo-backup.log 2>&1") | crontab -
    ```
-   Restauration : `gunzip -c <fichier>.sql.gz | docker compose -f
-   docker-compose.prod.yml exec -T db sh -c 'psql -U "$POSTGRES_USER" -d
-   "$POSTGRES_DB"'` (sur une base vide).
+   Voir "Sauvegardes et restauration" plus bas.
 8. **Brevo** : activer le blocage des IP non autorisées pour les clés API
    avec l'IPv4 du VPS (voir PROJECT.md, étape 14).
 
-### Mise à jour
+### Mise à jour du site (après une modif)
+
+Sur le poste de dev : commit sur `develop`, push, fusion dans `main` (PR).
+Puis sur le VPS, en root :
 
 ```bash
 cd /var/www/kine-maxillo
+
+# 1. Sauvegarde de la base avant de toucher à quoi que ce soit
+./deploy/backup.sh
+
+# 2. Récupérer le code et reconstruire / redémarrer
 git pull
 docker compose -f docker-compose.prod.yml up -d --build
+
+# 3. Vérifier
+docker compose -f docker-compose.prod.yml ps                 # app et db "Up", db "healthy"
+docker compose -f docker-compose.prod.yml logs migrate | tail -3   # migrations OK
+docker compose -f docker-compose.prod.yml logs app | tail -5       # "Ready"
+curl -sI http://127.0.0.1:3001 | head -1                     # HTTP/1.1 200 OK
+
+# 4. (De temps en temps) supprimer les anciennes images de build — sans risque pour la base
+docker image prune -f
 ```
+
+**La base de prod n'est jamais touchée par une mise à jour.** Les données
+sont dans le volume Docker `kine-maxillo_db-data`, indépendant des
+conteneurs : `up -d --build` reconstruit et remplace les conteneurs de
+l'app, le volume reste. Les nouvelles migrations Prisma (s'il y en a)
+sont appliquées automatiquement par le service `migrate` avant le
+redémarrage de l'app — elles modifient la structure, pas les données
+existantes (sauf migration écrite pour, à relire avant de déployer).
+
+**Commandes qui SUPPRIMENT la base — ne jamais les lancer sur le VPS :**
+
+| Commande | Pourquoi c'est dangereux |
+|---|---|
+| `docker compose -f docker-compose.prod.yml down -v` | le `-v` supprime les volumes, donc la base (`down` **sans** `-v` est sans danger) |
+| `docker volume rm kine-maxillo_db-data` | supprime la base directement |
+| `docker volume prune` / `docker system prune --volumes` | supprime les volumes non utilisés — y compris la base si les conteneurs sont arrêtés à ce moment-là, et ceux des **autres sites** du VPS |
+
+**Si le `.env` change** (nouvelle clé, nouvelle variable) : `docker
+compose -f docker-compose.prod.yml up -d --force-recreate app` pour que
+l'app relise le fichier.
+
+**Revenir à la version précédente** si la mise à jour pose problème :
+
+```bash
+git log --oneline -5                     # repérer le commit précédent
+git checkout <commit>                    # code de la version précédente
+docker compose -f docker-compose.prod.yml up -d --build
+git checkout main                        # une fois corrigé côté dev, avant le prochain git pull
+```
+
+Attention : si la mise à jour contenait une migration, revenir au code
+précédent ne défait pas la migration. Dans ce cas, restaurer la sauvegarde
+faite à l'étape 1 (voir "Sauvegardes et restauration" ci-dessous) —
+c'est pour ça qu'on la fait avant chaque mise à jour.
+
+### Sauvegardes et restauration
+
+`deploy/backup.sh` exporte toute la base (structure + données) avec
+`pg_dump`, depuis l'intérieur du conteneur `db`, dans un fichier compressé
+`/var/backups/kine-maxillo/kine_maxillo_<date>_<heure>.sql.gz` (lisible
+par root uniquement), et supprime ceux de plus de 14 jours. Lancé chaque
+nuit par cron, et à la main avant chaque mise à jour.
+
+Ces sauvegardes sont sur le **même disque** que la base : elles protègent
+d'une erreur (mauvaise manip, migration ratée), pas d'une perte du VPS.
+Copie régulière hors du VPS à prévoir.
+
+**Restaurer une sauvegarde** (remplace TOUTE la base actuelle par celle du
+fichier — procédure testée) :
+
+```bash
+cd /var/www/kine-maxillo
+ls -lt /var/backups/kine-maxillo/ | head        # choisir le fichier
+F=/var/backups/kine-maxillo/kine_maxillo_AAAA-MM-JJ_HHMM.sql.gz
+C="docker compose -f docker-compose.prod.yml"
+
+./deploy/backup.sh                              # filet de sécurité : sauvegarde de l'état actuel
+$C stop app                                     # plus d'écriture pendant la restauration
+$C exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE" -c "CREATE SCHEMA public"'
+gunzip -c "$F" | $C exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+$C start app
+```
+
+`ON_ERROR_STOP=1` arrête la restauration à la première erreur au lieu de
+continuer sur une base à moitié restaurée — dans ce cas, recommencer avec
+la sauvegarde "filet de sécurité" faite juste avant.
