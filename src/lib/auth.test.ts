@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import bcrypt from "bcryptjs";
-import { authOptions, LOGIN_MAX_FAILURES } from "@/lib/auth";
+import { authOptions, LOGIN_MAX_FAILURES, SESSION_MAX_AGE_SECONDS } from "@/lib/auth";
 import { LOGIN_RATE_LIMITED_ERROR } from "@/lib/auth-errors";
 
 const TEST_EMAIL = "johanna@kine-maxillo-lyon.com";
@@ -70,5 +70,12 @@ describe("Credentials provider authorize()", () => {
       id: "practitioner",
       email: TEST_EMAIL,
     });
+  });
+});
+
+describe("session duration", () => {
+  it("expires after 7 days (extended on each use by SessionKeepAlive)", () => {
+    expect(SESSION_MAX_AGE_SECONDS).toBe(7 * 24 * 60 * 60);
+    expect(authOptions.session?.maxAge).toBe(SESSION_MAX_AGE_SECONDS);
   });
 });

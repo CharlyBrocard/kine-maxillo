@@ -344,6 +344,11 @@ type Mutation {
     - **Purge du motif** (`src/lib/retention.ts`) : effacé
       immédiatement à l'annulation/expiration, et 30 jours
       (`REASON_RETENTION_DAYS`) après la fin du RDV sinon.
+    - **Session praticienne** : expire après 7 jours **sans
+      utilisation** (`SESSION_MAX_AGE_SECONDS`), prolongée à chaque
+      ouverture/navigation du backoffice (`SessionKeepAlive`). Avant :
+      30 jours fixes après la connexion, jamais prolongés.
+      Anti brute-force testé en conditions réelles (2026-10-08).
     - **API** : GraphiQL et introspection désactivés en production.
     - **En-têtes HTTP** (`next.config.ts`) : anti-clickjacking,
       `Referrer-Policy: no-referrer` (les liens de confirmation portent

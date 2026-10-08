@@ -18,8 +18,16 @@ const LOGIN_FAILURE_WINDOW_MS = 15 * 60_000;
  * les identifiants viennent de l'environnement (ADMIN_EMAIL,
  * ADMIN_PASSWORD_HASH), comparés à la connexion.
  */
+/**
+ * Durée de session : expire après SESSION_MAX_AGE_SECONDS **sans
+ * utilisation**. Le backoffice prolonge la session à chaque ouverture et
+ * navigation (SessionKeepAlive) — sans ça, le JWT expirerait à date fixe
+ * après la connexion, même en usage quotidien.
+ */
+export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
   pages: {
     signIn: "/espace",
   },
