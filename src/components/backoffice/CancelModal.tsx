@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatUTCDate, formatUTCTime } from "@/lib/date-utils";
+import { formatCabinetDate, formatCabinetTime } from "@/lib/date-utils";
 
 export type CancellableAppointment = {
   id: string;
@@ -47,8 +47,8 @@ export function CancelModal({
         <div className="flex flex-col gap-0.5 rounded-xl bg-sable p-4.5">
           <span className="text-[17px] font-semibold">{appointment.patientName}</span>
           <span className="text-[15.5px] text-body">
-            {formatUTCDate(start, { weekday: "long", day: "numeric", month: "long" })} ·{" "}
-            {formatUTCTime(start)} — {formatUTCTime(end)}
+            {formatCabinetDate(start, { weekday: "long", day: "numeric", month: "long" })} ·{" "}
+            {formatCabinetTime(start)} — {formatCabinetTime(end)}
             {appointment.reason ? ` — ${appointment.reason}` : ""}
           </span>
           <span className="text-[15.5px] text-body">{appointment.patientPhone}</span>

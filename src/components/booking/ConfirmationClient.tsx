@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
 import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
-import { formatUTCDate, formatUTCTime } from "@/lib/date-utils";
+import { formatCabinetDate, formatCabinetTime } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
 
 const CONFIRM_APPOINTMENT_MUTATION = /* GraphQL */ `
@@ -114,8 +114,8 @@ export function ConfirmationClient() {
             Quand
           </span>
           <span className="font-serif text-2xl">
-            {formatUTCDate(slotStart, { weekday: "long", day: "numeric", month: "long" })} ·{" "}
-            {formatUTCTime(slotStart)}
+            {formatCabinetDate(slotStart, { weekday: "long", day: "numeric", month: "long" })} ·{" "}
+            {formatCabinetTime(slotStart)}
           </span>
           <span className="text-[15px] text-[#3B4A44]">
             Durée {SLOT_DURATION_MINUTES} min — arrivez 5 min avant

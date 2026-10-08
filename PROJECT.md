@@ -384,6 +384,19 @@ type Mutation {
       (idéalement côté entrée/école). À mentionner dans la politique de
       confidentialité : la carte charge des tuiles depuis les serveurs
       d'OpenStreetMap (adresse IP du visiteur transmise).
+18. ~~Fuseau horaire~~ — fait (2026-10-08) : les dates sont désormais de
+    vrais instants UTC, et tout ce qui dépend du calendrier (jour,
+    semaine, heure affichée ou saisie) est calculé en Europe/Paris, heure
+    d'été comprise (`src/lib/date-utils.ts`). Avant, l'app traitait "UTC =
+    heure du cabinet" : affichage juste mais comparaisons avec l'heure
+    actuelle décalées de 1-2 h (créneau réservable jusqu'à 2 h après son
+    début). Migration `cabinet_time_to_real_utc` qui convertit les
+    créneaux/RDV existants — appliquée automatiquement au déploiement
+    (service `migrate`) : **faire la sauvegarde avant** (procédure de
+    mise à jour du README). Tests rejoués sous plusieurs fuseaux machine.
+    Emails de RDV : `.ics` en pièce jointe (iPhone Mail) + lien "Ajouter à
+    Google Agenda" (Gmail web), pour le patient et la praticienne.
+
 17. ~~SEO technique~~ — fait :
     - Titre, description et URL canonique propres à chaque page vitrine
       (titres < 60 caractères, descriptions < 160) ; modèle de titre

@@ -8,11 +8,12 @@ import { categories, categoryLabel, type CategoryId } from "@/lib/categories";
 import { maxilloMotifs, MOTIF_AUTRE } from "@/lib/motifs";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 import {
-  addUTCDays,
-  formatUTCDate,
-  formatUTCTime,
-  isSameUTCDay,
-  startOfUTCDay,
+  addCabinetDays,
+  cabinetDayOfMonth,
+  formatCabinetDate,
+  formatCabinetTime,
+  isSameCabinetDay,
+  startOfCabinetDay,
 } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
 import {
@@ -75,11 +76,11 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
   const [resendError, setResendError] = useState<string | null>(null);
 
   const weekStart = useMemo(
-    () => addUTCDays(startOfUTCDay(new Date()), weekOffset * 7),
+    () => addCabinetDays(startOfCabinetDay(new Date()), weekOffset * 7),
     [weekOffset]
   );
   const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addUTCDays(weekStart, i)),
+    () => Array.from({ length: 7 }, (_, i) => addCabinetDays(weekStart, i)),
     [weekStart]
   );
 
@@ -88,7 +89,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
     let cancelled = false;
 
     const from = weekOffset === 0 ? new Date() : weekStart;
-    const to = addUTCDays(weekStart, 7);
+    const to = addCabinetDays(weekStart, 7);
 
     Promise.resolve()
       .then(() => {
@@ -129,18 +130,18 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
     days.forEach((_, i) => map.set(i, []));
     for (const slot of apiSlots) {
       const start = new Date(slot.start);
-      const i = days.findIndex((d) => isSameUTCDay(d, start));
+      const i = days.findIndex((d) => isSameCabinetDay(d, start));
       if (i !== -1) map.get(i)!.push(slot);
     }
     return map;
   }, [apiSlots, days]);
 
   const selection = selectedSlot
-    ? `${formatUTCDate(new Date(selectedSlot.start), {
+    ? `${formatCabinetDate(new Date(selectedSlot.start), {
         weekday: "long",
         day: "numeric",
         month: "long",
-      })} à ${formatUTCTime(new Date(selectedSlot.start))} — ${SLOT_DURATION_MINUTES} min`
+      })} à ${formatCabinetTime(new Date(selectedSlot.start))} — ${SLOT_DURATION_MINUTES} min`
     : null;
 
   async function submitRequest(e: React.FormEvent) {
@@ -296,9 +297,9 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                     <div key={day.toISOString()} className="flex flex-col gap-2.5">
                       <div className="rounded-[10px] bg-cream py-2.5 text-center">
                         <div className="text-[13px] text-muted">
-                          {formatUTCDate(day, { weekday: "short" })}
+                          {formatCabinetDate(day, { weekday: "short" })}
                         </div>
-                        <div className="text-lg font-semibold">{day.getUTCDate()}</div>
+                        <div className="text-lg font-semibold">{cabinetDayOfMonth(day)}</div>
                       </div>
                       {daySlots.length === 0 ? (
                         <div className="rounded-[10px] border-[1.5px] border-dashed border-border-strong px-2 py-4 text-center text-[13.5px] leading-tight text-faint">
@@ -319,7 +320,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                                   : "border-[1.5px] border-border-input bg-white text-ink hover:border-accent")
                               }
                             >
-                              {formatUTCTime(new Date(slot.start))}
+                              {formatCabinetTime(new Date(slot.start))}
                             </button>
                           );
                         })
@@ -481,13 +482,13 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
             <span className="eyebrow">Votre rendez-vous</span>
             <div className="flex flex-col gap-1">
               <span className="font-serif text-[22px] leading-tight">
-                {formatUTCDate(new Date(selectedSlot.start), {
+                {formatCabinetDate(new Date(selectedSlot.start), {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
                 })}
                 <br />
-                {formatUTCTime(new Date(selectedSlot.start))}
+                {formatCabinetTime(new Date(selectedSlot.start))}
               </span>
               <span className="text-[15.5px] text-body">
                 {categoryLabel(category)} · {SLOT_DURATION_MINUTES} min
@@ -520,12 +521,12 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
           <div className="w-full rounded-2xl border border-border bg-white p-5 text-left">
             <span className="eyebrow">Créneau réservé {SLOT_DURATION_MINUTES} min</span>
             <div className="font-serif text-[22px]">
-              {formatUTCDate(new Date(selectedSlot.start), {
+              {formatCabinetDate(new Date(selectedSlot.start), {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
               })}{" "}
-              · {formatUTCTime(new Date(selectedSlot.start))}
+              · {formatCabinetTime(new Date(selectedSlot.start))}
             </div>
             <div className="text-[15.5px] text-body">
               {siteConfig.adresseLigne1}, {siteConfig.ville}
