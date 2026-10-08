@@ -370,11 +370,15 @@ type Mutation {
       Photos à fournir avec l'accord des personnes visibles (patients
       compris) ; prévoir des textes alternatifs (`alt`) descriptifs,
       utiles aussi pour le SEO.
-    - **Remplacer la carte placeholder** (`MapPlaceholder`, page
-      `/contact`) — par une carte réelle ou un lien vers l'itinéraire.
-      Attention : un iframe Google Maps dépose des cookies tiers →
-      bandeau de consentement nécessaire ; une image statique + lien
-      "Itinéraire" l'évite.
+    - ~~Carte placeholder sur `/contact`~~ — fait : carte
+      OpenStreetMap intégrée (`CabinetMap.tsx`, sans cookie → pas de
+      bandeau de consentement, contrairement à Google Maps) + liens
+      "Itinéraire" Google Maps / Waze / Plans ouverts au clic.
+      Coordonnées (`siteConfig.coordonnees`) issues de la Base Adresse
+      Nationale — **vérifier que le marqueur tombe au bon endroit**
+      (idéalement côté entrée/école). À mentionner dans la politique de
+      confidentialité : la carte charge des tuiles depuis les serveurs
+      d'OpenStreetMap (adresse IP du visiteur transmise).
 17. ~~SEO technique~~ — fait :
     - Titre, description et URL canonique propres à chaque page vitrine
       (titres < 60 caractères, descriptions < 160) ; modèle de titre

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
-import { MapPlaceholder } from "@/components/marketing/MapPlaceholder";
+import { CabinetMap } from "@/components/marketing/CabinetMap";
 import { siteConfig } from "@/lib/site-config";
 
 function InfoBlock({
@@ -44,6 +44,7 @@ export default function ContactPage() {
                   <br />
                   {siteConfig.adresseLigne2}
                 </span>
+                <span className="text-base text-ink">{siteConfig.indicationAcces}</span>
                 <span className="text-base text-muted">
                   {siteConfig.zone} · {siteConfig.accesPmr}
                 </span>
@@ -86,7 +87,7 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <MapPlaceholder />
+          <CabinetMap />
         </div>
       </section>
     </div>

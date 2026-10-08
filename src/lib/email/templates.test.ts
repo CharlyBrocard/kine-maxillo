@@ -8,6 +8,14 @@ const base = {
   patientPhone: "0611111111",
 };
 
+describe("appointmentConfirmedEmail — accès au cabinet", () => {
+  it("tells the patient the entrance is on the school side", () => {
+    const email = appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok");
+    expect(email.text).toContain("côté école, et non côté rue");
+    expect(email.html).toContain("côté école, et non côté rue");
+  });
+});
+
 describe("appointmentConfirmedEmail — documents à apporter", () => {
   it("lists Vitale card, prescription, mutual insurance card and payment for maxillo-facial", () => {
     const email = appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok");
