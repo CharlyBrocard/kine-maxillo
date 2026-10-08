@@ -141,13 +141,14 @@ export function appointmentConfirmedEmail(
   const intro = `Bonjour ${appointment.patientName}, votre rendez-vous est confirmé :`;
   const cancel = "Un empêchement ? Merci d'annuler au plus tôt pour libérer le créneau :";
   const toBring = whatToBring(appointment.category);
+  const access = `Accès : ${siteConfig.indicationAcces} ${siteConfig.accesPmr}.`;
   return {
     to: appointment.patientEmail,
     toName: appointment.patientName,
     subject: `Rendez-vous confirmé — ${when(appointment)}`,
-    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", siteConfig.accesPmr, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
+    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", access, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
     html: layout({
-      paragraphs: [intro, siteConfig.accesPmr, cancel],
+      paragraphs: [intro, access, cancel],
       summary: summaryLines(appointment),
       checklist: toBring,
       button: { label: "Annuler mon rendez-vous", href: link },

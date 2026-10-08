@@ -17,6 +17,8 @@ export const siteConfig = {
   region: "Auvergne-Rhône-Alpes",
   zone: "Ouest lyonnais",
   accesPmr: "Rez-de-chaussée, accès PMR",
+  /** Repère pour trouver l'entrée (email de confirmation). */
+  indicationAcces: "L'entrée du cabinet se trouve côté école, et non côté rue.",
 
   telephone: "04 72 30 74 85",
   telephoneHref: "tel:+33472307485",
