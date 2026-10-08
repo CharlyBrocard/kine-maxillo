@@ -44,6 +44,7 @@ export default function ContactPage() {
                   <br />
                   {siteConfig.adresseLigne2}
                 </span>
+                <span className="text-base text-ink">{siteConfig.indicationAcces}</span>
                 <span className="text-base text-muted">
                   {siteConfig.zone} · {siteConfig.accesPmr}
                 </span>
