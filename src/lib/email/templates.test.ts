@@ -3,7 +3,7 @@ import { appointmentConfirmedEmail, newAppointmentNotification } from "@/lib/ema
 
 const base = {
   id: "appt123",
-  slotStart: new Date("2030-01-07T09:00:00Z"),
+  slotStart: new Date("2030-01-07T08:00:00Z"), // 09:00 à Paris (hiver)
   patientName: "Marie Curie",
   patientEmail: "marie@example.com",
   patientPhone: "0611111111",
@@ -70,5 +70,33 @@ describe("calendar attachment (.ics)", () => {
     expect(ics.replace(/\r\n/g, "")).not.toContain("\n");
     for (const line of lines) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
     expect(ics.replace(/\r\n /g, "")).toContain("LOCATION:6 Av. Jacques Nemos\\, 69390 Millery");
+  });
+});
+
+describe("Google Agenda link", () => {
+  const googleUrlIn = (html: string) => {
+    const m = html.match(/href="(https:\/\/calendar\.google\.com\/calendar\/render\?[^"]+)"/);
+    return m ? new URL(m[1].replace(/&amp;/g, "&")) : null;
+  };
+
+  it("is in the patient's confirmation with the real UTC times and Paris timezone", () => {
+    const email = appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok");
+    const url = googleUrlIn(email.html)!;
+    expect(url.searchParams.get("action")).toBe("TEMPLATE");
+    // 09:00 à Paris le 7 janvier 2030 (hiver) = 08:00 UTC, 30 min.
+    expect(url.searchParams.get("dates")).toBe("20300107T080000Z/20300107T083000Z");
+    expect(url.searchParams.get("ctz")).toBe("Europe/Paris");
+    expect(email.text).toContain("Ajouter à Google Agenda : https://calendar.google.com/");
+  });
+
+  it("is in the practitioner's notification, without the reason, next to a clearly named backoffice button", () => {
+    process.env.PRACTITIONER_NOTIFICATION_EMAIL = "cabinet@example.com";
+    const email = newAppointmentNotification({ ...base, category: "MAXILLO_FACIAL" })!;
+    delete process.env.PRACTITIONER_NOTIFICATION_EMAIL;
+    const url = googleUrlIn(email.html)!;
+    expect(url.searchParams.get("text")).toBe("Marie Curie — Rééducation maxillo-faciale");
+    expect(url.toString()).not.toMatch(/motif|reason/i);
+    expect(email.html).toContain("Voir dans l&#39;espace praticienne");
+    expect(email.html).not.toContain("Ouvrir l&#39;agenda");
   });
 });

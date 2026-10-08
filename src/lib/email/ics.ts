@@ -1,4 +1,5 @@
 import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
+import { CABINET_TIMEZONE, cabinetParts } from "@/lib/date-utils";
 
 /**
  * Fichier d'agenda (.ics, RFC 5545) joint aux emails de RDV : un tap dans
@@ -7,7 +8,7 @@ import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
  * praticienne. Une annulation ultérieure ne met pas l'événement à jour.
  */
 
-const TIMEZONE = "Europe/Paris";
+const TIMEZONE = CABINET_TIMEZONE;
 
 /**
  * Définition du fuseau Europe/Paris (heure d'été : dernier dimanche de
@@ -66,17 +67,10 @@ function fold(line: string): string {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/**
- * Heure locale du cabinet. Convention de l'application : les heures sont
- * stockées en UTC mais représentent l'heure du cabinet (voir
- * src/lib/date-utils.ts) — on lit donc les composantes UTC, qu'on déclare
- * en Europe/Paris.
- */
+/** Heure locale du cabinet, déclarée avec TZID=Europe/Paris. */
 function localCabinetTime(date: Date): string {
-  return (
-    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
-    `T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}00`
-  );
+  const p = cabinetParts(date);
+  return `${p.year}${pad(p.month)}${pad(p.day)}T${pad(p.hour)}${pad(p.minute)}00`;
 }
 
 function utcStamp(date: Date): string {
@@ -92,6 +86,24 @@ export type CalendarEvent = {
   description: string;
   url?: string;
 };
+
+/**
+ * Lien "Ajouter à Google Agenda" (pré-remplit l'événement, enregistrement
+ * au clic) — complément du .ics pour ceux qui lisent leurs emails dans
+ * Gmail sur le web, où la pièce jointe n'a pas de bouton d'ajout.
+ */
+export function googleCalendarUrl(event: CalendarEvent): string {
+  const end = new Date(event.start.getTime() + SLOT_DURATION_MINUTES * 60_000);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.summary,
+    dates: `${utcStamp(event.start)}/${utcStamp(end)}`,
+    ctz: TIMEZONE,
+    location: event.location,
+    details: event.description,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export function buildIcs(event: CalendarEvent, now: Date = new Date()): string {
   const end = new Date(event.start.getTime() + SLOT_DURATION_MINUTES * 60_000);

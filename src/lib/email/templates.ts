@@ -1,10 +1,10 @@
 import type { Appointment } from "@prisma/client";
 import { categoryLabel } from "@/lib/categories";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
-import { formatUTCDate, formatUTCTime } from "@/lib/date-utils";
+import { formatCabinetDate, formatCabinetTime } from "@/lib/date-utils";
 import { siteConfig } from "@/lib/site-config";
 import { practitionerNotificationEmail, siteUrl, type Email } from "@/lib/email/send";
-import { buildIcs } from "@/lib/email/ics";
+import { buildIcs, googleCalendarUrl, type CalendarEvent } from "@/lib/email/ics";
 
 /**
  * Contenu des emails transactionnels. Le motif du RDV n'apparaît dans
@@ -18,6 +18,8 @@ type AppointmentForEmail = Pick<
 >;
 
 const ICS_NAME = "rendez-vous.ics";
+const CALENDAR_HINT =
+  "Ajouter à votre agenda : ouvrez la pièce jointe rendez-vous.ics (iPhone, Outlook…) ou utilisez le lien Google Agenda.";
 
 function cabinetAddress(): string {
   return `${siteConfig.adresseLigne1}, ${siteConfig.adresseLigne2}`;
@@ -38,13 +40,13 @@ function escapeHtml(value: string): string {
 }
 
 function when(appointment: AppointmentForEmail): string {
-  const date = formatUTCDate(appointment.slotStart, {
+  const date = formatCabinetDate(appointment.slotStart, {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
-  return `${date} à ${formatUTCTime(appointment.slotStart)}`;
+  return `${date} à ${formatCabinetTime(appointment.slotStart)}`;
 }
 
 function summaryLines(appointment: AppointmentForEmail): string[] {
@@ -63,6 +65,8 @@ function layout(opts: {
   summary?: string[];
   checklist?: Checklist;
   button?: { label: string; href: string };
+  /** Bloc "ajouter à l'agenda" : indication + lien Google Agenda (le .ics est en pièce jointe). */
+  calendar?: { hint: string; googleUrl: string };
   footer?: string;
 }): string {
   const p = (text: string) =>
@@ -83,13 +87,16 @@ function layout(opts: {
   const button = opts.button
     ? `<p style="margin:0 0 20px"><a href="${escapeHtml(opts.button.href)}" style="display:inline-block;padding:14px 24px;border-radius:10px;background:#3F6F63;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none">${escapeHtml(opts.button.label)}</a></p>`
     : "";
+  const calendar = opts.calendar
+    ? `<p style="margin:0 0 6px;font-size:15px;line-height:1.5;color:#55645E">${escapeHtml(opts.calendar.hint)}</p><p style="margin:0 0 20px"><a href="${escapeHtml(opts.calendar.googleUrl)}" style="display:inline-block;padding:10px 18px;border-radius:10px;border:1.5px solid #C6CFC9;color:#23312C;font-size:15px;font-weight:600;text-decoration:none">Ajouter à Google Agenda</a></p>`
+    : "";
   const footer = opts.footer
     ? `<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#6B7A74">${escapeHtml(opts.footer)}</p>`
     : "";
   return `<!doctype html><html lang="fr"><body style="margin:0;padding:24px;background:#F6F4EE;font-family:Arial,Helvetica,sans-serif"><div style="max-width:560px;margin:0 auto;padding:28px;border-radius:16px;background:#ffffff">${opts.paragraphs
     .slice(0, 1)
     .map(p)
-    .join("")}${summary}${checklist}${opts.paragraphs.slice(1).map(p).join("")}${button}<p style="margin:0;font-size:15px;line-height:1.5;color:#23312C">${escapeHtml(siteConfig.praticienne)} — ${escapeHtml(siteConfig.qualification)}<br>${escapeHtml(siteConfig.telephone)}</p>${footer}</div></body></html>`;
+    .join("")}${summary}${checklist}${calendar}${opts.paragraphs.slice(1).map(p).join("")}${button}<p style="margin:0;font-size:15px;line-height:1.5;color:#23312C">${escapeHtml(siteConfig.praticienne)} — ${escapeHtml(siteConfig.qualification)}<br>${escapeHtml(siteConfig.telephone)}</p>${footer}</div></body></html>`;
 }
 
 function signature(): string {
@@ -153,7 +160,7 @@ export function appointmentConfirmedEmail(
   const intro = `Bonjour ${appointment.patientName}, votre rendez-vous est confirmé :`;
   const cancel = "Un empêchement ? Merci d'annuler au plus tôt pour libérer le créneau :";
   const toBring = whatToBring(appointment.category);
-  const ics = buildIcs({
+  const event: CalendarEvent = {
     uid: eventUid(appointment),
     start: appointment.slotStart,
     summary: `Kiné — ${siteConfig.praticienne}`,
@@ -164,22 +171,24 @@ export function appointmentConfirmedEmail(
       siteConfig.telephone,
       `Annuler : ${link}`,
     ].join("\n"),
-  });
-  const calendarHint = "Le rendez-vous est joint à cet email : ouvrez la pièce jointe pour l'ajouter à votre agenda.";
+  };
+  const googleLink = googleCalendarUrl(event);
+  const calendarHint = CALENDAR_HINT;
   const access = `Accès : ${siteConfig.indicationAcces} ${siteConfig.accesPmr}.`;
   return {
     to: appointment.patientEmail,
     toName: appointment.patientName,
     subject: `Rendez-vous confirmé — ${when(appointment)}`,
-    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", access, "", calendarHint, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
+    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", access, "", calendarHint, `Ajouter à Google Agenda : ${googleLink}`, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
     html: layout({
-      paragraphs: [intro, access, calendarHint, cancel],
+      paragraphs: [intro, access, cancel],
+      calendar: { hint: calendarHint, googleUrl: googleLink },
       summary: summaryLines(appointment),
       checklist: toBring,
       button: { label: "Annuler mon rendez-vous", href: link },
       footer: NO_REPLY_NEEDED,
     }),
-    attachments: [{ name: ICS_NAME, content: ics }],
+    attachments: [{ name: ICS_NAME, content: buildIcs(event) }],
   };
 }
 
@@ -205,32 +214,43 @@ function practitionerEmail(
   const to = practitionerNotificationEmail();
   if (!to) return null;
   const contact = [`${appointment.patientName}`, appointment.patientPhone, appointment.patientEmail];
-  const agenda = `Voir l'agenda : ${siteUrl()}/espace/agenda`;
+  const backoffice = `${siteUrl()}/espace/agenda`;
+  const agenda = `Espace praticienne : ${backoffice}`;
+  // Sans le motif (donnée de santé) : l'agenda est synchronisé chez Apple/Google.
+  const event: CalendarEvent | null = withCalendar
+    ? {
+        uid: eventUid(appointment),
+        start: appointment.slotStart,
+        summary: `${appointment.patientName} — ${categoryLabel(appointment.category)}`,
+        location: cabinetAddress(),
+        description: [appointment.patientPhone, appointment.patientEmail, `Espace praticienne : ${backoffice}`].join("\n"),
+        url: backoffice,
+      }
+    : null;
+  const googleLink = event ? googleCalendarUrl(event) : null;
   return {
     to,
     subject,
-    text: [intro, "", when(appointment), categoryLabel(appointment.category), "", ...contact, "", agenda].join("\n"),
+    text: [
+      intro,
+      "",
+      when(appointment),
+      categoryLabel(appointment.category),
+      "",
+      ...contact,
+      "",
+      ...(googleLink ? [CALENDAR_HINT, `Ajouter à Google Agenda : ${googleLink}`, ""] : []),
+      agenda,
+    ].join("\n"),
     html: layout({
       paragraphs: [intro, ...contact],
       summary: [when(appointment), categoryLabel(appointment.category)],
-      button: { label: "Ouvrir l'agenda", href: `${siteUrl()}/espace/agenda` },
+      ...(googleLink ? { calendar: { hint: CALENDAR_HINT, googleUrl: googleLink } } : {}),
+      button: { label: "Voir dans l'espace praticienne", href: backoffice },
     }),
-    // Sans le motif (donnée de santé) : l'agenda est synchronisé chez Apple/Google.
-    ...(withCalendar
+    ...(event
       ? {
-          attachments: [
-            {
-              name: ICS_NAME,
-              content: buildIcs({
-                uid: eventUid(appointment),
-                start: appointment.slotStart,
-                summary: `${appointment.patientName} — ${categoryLabel(appointment.category)}`,
-                location: cabinetAddress(),
-                description: [appointment.patientPhone, appointment.patientEmail, `Agenda : ${siteUrl()}/espace/agenda`].join("\n"),
-                url: `${siteUrl()}/espace/agenda`,
-              }),
-            },
-          ],
+          attachments: [{ name: ICS_NAME, content: buildIcs(event) }],
         }
       : {}),
   };
