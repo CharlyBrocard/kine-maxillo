@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { siteConfig } from "@/lib/site-config";
 import { Header } from "@/components/marketing/Header";
 import { ButtonLink } from "@/components/ui/Button";
-import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
+import { AtmIllustration } from "@/components/illustrations/AtmIllustration";
+import { PressotherapieIllustration } from "@/components/illustrations/PressotherapieIllustration";
+import { ReeducationIllustration } from "@/components/illustrations/ReeducationIllustration";
 
 function Bullet({ children, tone = "sauge" }: { children: React.ReactNode; tone?: "sauge" | "terracotta" }) {
   return (
@@ -81,10 +83,7 @@ export default function SpecialitesPage() {
               Maladie, tarif conventionné secteur 1.
             </div>
           </div>
-          <PhotoPlaceholder
-            label="séance ATM / thérapie manuelle"
-            className="h-72 sm:h-[440px]"
-          />
+          <AtmIllustration className="h-72 sm:h-[440px]" />
         </div>
       </section>
 
@@ -93,10 +92,7 @@ export default function SpecialitesPage() {
         className="border-b border-border-soft px-6 py-14 sm:px-12 sm:py-16"
       >
         <div className="mx-auto grid max-w-6xl items-start gap-12 md:grid-cols-2">
-          <PhotoPlaceholder
-            label="salle de rééducation"
-            className="order-2 h-72 sm:h-96 md:order-1"
-          />
+          <ReeducationIllustration className="order-2 h-72 sm:h-96 md:order-1" />
           <div className="order-1 flex flex-col gap-4.5 md:order-2">
             <div className="flex items-center gap-3.5">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sauge font-mono text-accent">
@@ -152,11 +148,7 @@ export default function SpecialitesPage() {
               <ButtonLink href="/tarifs">Réserver une séance</ButtonLink>
             </div>
           </div>
-          <PhotoPlaceholder
-            label="bottes de pressothérapie"
-            tone="terracotta"
-            className="h-72 sm:h-[340px]"
-          />
+          <PressotherapieIllustration className="h-72 sm:h-[340px]" />
         </div>
       </section>
     </div>
