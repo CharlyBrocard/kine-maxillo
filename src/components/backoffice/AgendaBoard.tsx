@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CancelModal, type CancellableAppointment } from "@/components/backoffice/CancelModal";
 import {
-  addUTCDays,
-  formatUTCDate,
-  formatUTCTime,
-  isSameUTCDay,
-  mondayOfUTCWeek,
+  addCabinetDays,
+  cabinetDayOfMonth,
+  formatCabinetDate,
+  formatCabinetTime,
+  isSameCabinetDay,
+  mondayOfCabinetWeek,
 } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
 
@@ -56,17 +57,17 @@ export function AgendaBoard() {
   const [modalAppointment, setModalAppointment] = useState<CancellableAppointment | null>(null);
 
   const weekStart = useMemo(
-    () => addUTCDays(mondayOfUTCWeek(new Date()), weekOffset * 7),
+    () => addCabinetDays(mondayOfCabinetWeek(new Date()), weekOffset * 7),
     [weekOffset]
   );
   const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addUTCDays(weekStart, i)),
+    () => Array.from({ length: 7 }, (_, i) => addCabinetDays(weekStart, i)),
     [weekStart]
   );
   const today = useMemo(() => new Date(), []);
 
   const refetch = useCallback(() => {
-    const to = addUTCDays(weekStart, 7);
+    const to = addCabinetDays(weekStart, 7);
     return gqlRequest<{ appointments: ApiAppointment[] }>(AGENDA_QUERY, {
       from: weekStart.toISOString(),
       to: to.toISOString(),
@@ -108,7 +109,7 @@ export function AgendaBoard() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4.5">
             <h1 className="font-serif text-[27px]">
-              Semaine du {formatUTCDate(weekStart, { day: "numeric", month: "long", year: "numeric" })}
+              Semaine du {formatCabinetDate(weekStart, { day: "numeric", month: "long", year: "numeric" })}
             </h1>
             <div className="flex gap-2">
               <button
@@ -157,17 +158,17 @@ export function AgendaBoard() {
       <div className="grid flex-1 grid-cols-2 gap-4 overflow-x-auto p-6 sm:grid-cols-3 lg:grid-cols-7 lg:gap-3 lg:p-8">
         {days.map((day) => {
           const dayAppointments = visible
-            .filter((a) => isSameUTCDay(new Date(a.slotStart), day))
+            .filter((a) => isSameCabinetDay(new Date(a.slotStart), day))
             .sort((a, b) => a.slotStart.localeCompare(b.slotStart));
-          const isToday = isSameUTCDay(day, today);
+          const isToday = isSameCabinetDay(day, today);
 
           return (
             <div key={day.toISOString()} className="flex flex-col gap-2.5">
               <div className={"rounded-[10px] py-2.5 text-center " + (isToday ? "bg-cream" : "")}>
                 <div className={"text-[13px] " + (isToday ? "text-accent" : "text-muted")}>
-                  {formatUTCDate(day, { weekday: "short" })}
+                  {formatCabinetDate(day, { weekday: "short" })}
                 </div>
-                <div className="text-lg font-semibold">{day.getUTCDate()}</div>
+                <div className="text-lg font-semibold">{cabinetDayOfMonth(day)}</div>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -177,7 +178,7 @@ export function AgendaBoard() {
                     className={`flex flex-col gap-0.5 rounded-lg p-3 ${statusStyles[appt.status as "PENDING" | "CONFIRMED"]}`}
                   >
                     <span className="font-mono text-[13px] text-muted">
-                      {formatUTCTime(new Date(appt.slotStart))} — {formatUTCTime(new Date(appt.slotEnd))}
+                      {formatCabinetTime(new Date(appt.slotStart))} — {formatCabinetTime(new Date(appt.slotEnd))}
                     </span>
                     <span className="text-[15px] font-semibold">{appt.patientName}</span>
                     <span className="text-[13.5px] text-body">

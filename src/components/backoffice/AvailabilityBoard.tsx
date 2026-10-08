@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { categories, categoryLabel, type CategoryId } from "@/lib/categories";
-import { formatUTCDate, formatUTCTime, dateFromInputs } from "@/lib/date-utils";
+import { formatCabinetDate, formatCabinetTime, dateFromInputs } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
 
 type ApiSlot = {
@@ -234,12 +234,12 @@ export function AvailabilityBoard() {
                   />
                   <div className="flex flex-1 flex-col gap-0.5">
                     <span className="text-[16.5px] font-semibold">
-                      {formatUTCDate(start, {
+                      {formatCabinetDate(start, {
                         weekday: "long",
                         day: "numeric",
                         month: "long",
                       })}{" "}
-                      · {formatUTCTime(start)}
+                      · {formatCabinetTime(start)}
                     </span>
                     <span className="text-[15px] text-body">
                       {categoryLabel(slot.category)}

@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { appointmentConfirmedEmail } from "@/lib/email/templates";
+import { appointmentConfirmedEmail, newAppointmentNotification } from "@/lib/email/templates";
 
 const base = {
-  slotStart: new Date("2030-01-07T09:00:00Z"),
+  id: "appt123",
+  slotStart: new Date("2030-01-07T08:00:00Z"), // 09:00 à Paris (hiver)
   patientName: "Marie Curie",
   patientEmail: "marie@example.com",
   patientPhone: "0611111111",
@@ -33,5 +34,69 @@ describe("appointmentConfirmedEmail — documents à apporter", () => {
       expect(email.text).not.toContain(item);
       expect(email.html).not.toContain(item);
     }
+  });
+});
+
+describe("calendar attachment (.ics)", () => {
+  const icsOf = (email: { attachments?: Array<{ name: string; content: string }> } | null) =>
+    email?.attachments?.find((a) => a.name === "rendez-vous.ics")?.content ?? "";
+
+  it("is attached to the patient's confirmation, in Paris time, without a reminder", () => {
+    const ics = icsOf(appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok"));
+    expect(ics).toContain("DTSTART;TZID=Europe/Paris:20300107T090000");
+    expect(ics).toContain("DTEND;TZID=Europe/Paris:20300107T093000");
+    expect(ics).toContain("UID:appt123@kine-maxillo-lyon.com");
+    expect(ics).toContain("BEGIN:VTIMEZONE");
+    expect(ics).not.toContain("VALARM");
+    expect(ics.replace(/\r\n /g, "")).toContain("/rendez-vous/annule?token=tok");
+  });
+
+  it("is attached to the practitioner's notification, with patient contact but never the reason", () => {
+    process.env.PRACTITIONER_NOTIFICATION_EMAIL = "cabinet@example.com";
+    const ics = icsOf(
+      newAppointmentNotification({ ...base, category: "MAXILLO_FACIAL" })
+    );
+    delete process.env.PRACTITIONER_NOTIFICATION_EMAIL;
+    const unfolded = ics.replace(/\r\n /g, "");
+    expect(unfolded).toContain("SUMMARY:Marie Curie — Rééducation maxillo-faciale");
+    expect(unfolded).toContain("0611111111");
+    expect(unfolded).not.toMatch(/motif|reason/i);
+  });
+
+  it("uses CRLF line endings, folds long lines at 75 bytes and escapes commas", () => {
+    const ics = icsOf(appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok"));
+    const lines = ics.split("\r\n");
+    expect(ics.endsWith("\r\n")).toBe(true);
+    expect(ics.replace(/\r\n/g, "")).not.toContain("\n");
+    for (const line of lines) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+    expect(ics.replace(/\r\n /g, "")).toContain("LOCATION:6 Av. Jacques Nemos\\, 69390 Millery");
+  });
+});
+
+describe("Google Agenda link", () => {
+  const googleUrlIn = (html: string) => {
+    const m = html.match(/href="(https:\/\/calendar\.google\.com\/calendar\/render\?[^"]+)"/);
+    return m ? new URL(m[1].replace(/&amp;/g, "&")) : null;
+  };
+
+  it("is in the patient's confirmation with the real UTC times and Paris timezone", () => {
+    const email = appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok");
+    const url = googleUrlIn(email.html)!;
+    expect(url.searchParams.get("action")).toBe("TEMPLATE");
+    // 09:00 à Paris le 7 janvier 2030 (hiver) = 08:00 UTC, 30 min.
+    expect(url.searchParams.get("dates")).toBe("20300107T080000Z/20300107T083000Z");
+    expect(url.searchParams.get("ctz")).toBe("Europe/Paris");
+    expect(email.text).toContain("Ajouter à Google Agenda : https://calendar.google.com/");
+  });
+
+  it("is in the practitioner's notification, without the reason, next to a clearly named backoffice button", () => {
+    process.env.PRACTITIONER_NOTIFICATION_EMAIL = "cabinet@example.com";
+    const email = newAppointmentNotification({ ...base, category: "MAXILLO_FACIAL" })!;
+    delete process.env.PRACTITIONER_NOTIFICATION_EMAIL;
+    const url = googleUrlIn(email.html)!;
+    expect(url.searchParams.get("text")).toBe("Marie Curie — Rééducation maxillo-faciale");
+    expect(url.toString()).not.toMatch(/motif|reason/i);
+    expect(email.html).toContain("Voir dans l&#39;espace praticienne");
+    expect(email.html).not.toContain("Ouvrir l&#39;agenda");
   });
 });

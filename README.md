@@ -121,54 +121,140 @@ les heures dans le serveur (`src/instrumentation.ts`).
 
 ### Première installation (en root sur le VPS)
 
-1. **Clé de déploiement GitHub** (repo privé, lecture seule) :
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/kine_maxillo_deploy -N "" -C "vps kine-maxillo"
-   cat ~/.ssh/kine_maxillo_deploy.pub   # à ajouter dans GitHub : repo → Settings → Deploy keys (sans "write access")
-   cat >> ~/.ssh/config <<'CFG'
-   Host github-kine-maxillo
-     HostName github.com
-     User git
-     IdentityFile ~/.ssh/kine_maxillo_deploy
-     IdentitiesOnly yes
-   CFG
-   git clone -b main git@github-kine-maxillo:CharlyBrocard/kine-maxillo.git /var/www/kine-maxillo
-   ```
-2. **Fichier `.env`** : `cp deploy/env.production.example .env`, puis
-   remplir chaque valeur (`chmod 600 .env`). Pour `ADMIN_PASSWORD_HASH`,
-   générer le hash sur le poste de dev (`node -e
-   "require('bcryptjs').hash('<mot de passe>', 10).then(console.log)"`) et
-   le coller **entre apostrophes** (`ADMIN_PASSWORD_HASH='$2b$10$...'`) :
-   docker compose n'interprète pas les `$` entre apostrophes.
-3. **Démarrer** :
-   ```bash
-   cd /var/www/kine-maxillo
-   docker compose -f docker-compose.prod.yml up -d --build
-   docker compose -f docker-compose.prod.yml logs migrate app   # migrations OK, "Ready"
-   curl -sI http://127.0.0.1:3001 | head -1                     # HTTP/1.1 200 OK
-   ```
-4. **Nginx** :
-   ```bash
-   cp deploy/nginx/kine-maxillo-lyon.com.conf /etc/nginx/sites-available/kine-maxillo-lyon.com
-   ln -s /etc/nginx/sites-available/kine-maxillo-lyon.com /etc/nginx/sites-enabled/
-   nginx -t && systemctl reload nginx     # nginx -t AVANT le reload : ne pas casser les autres sites
-   ```
-5. **DNS chez OVH** : enregistrements A de `kine-maxillo-lyon.com` et
-   `www` → IP du VPS (à la place de la page de parking OVH). Pas d'AAAA
-   (pas d'IPv6 sur le VPS). Attendre que `dig +short kine-maxillo-lyon.com`
-   renvoie l'IP du VPS.
-6. **HTTPS** :
-   ```bash
-   certbot --nginx -d kine-maxillo-lyon.com -d www.kine-maxillo-lyon.com
-   ```
-7. **Sauvegardes quotidiennes** (3 h du matin, 14 jours gardés dans
-   `/var/backups/kine-maxillo`) :
-   ```bash
-   (crontab -l 2>/dev/null; echo "0 3 * * * /var/www/kine-maxillo/deploy/backup.sh >> /var/log/kine-maxillo-backup.log 2>&1") | crontab -
-   ```
-   Voir "Sauvegardes et restauration" plus bas.
-8. **Brevo** : activer le blocage des IP non autorisées pour les clés API
-   avec l'IPv4 du VPS (voir PROJECT.md, étape 14).
+Ordre important : le site tourne d'abord en local sur le VPS (étapes 1 à
+4), sans être public ; il ne devient public qu'au changement de DNS
+(étape 5). Chaque étape se termine par une vérification — ne pas passer à
+la suivante sans le résultat attendu.
+
+**1. Clé de déploiement GitHub** (repo privé, accès en lecture seule)
+
+a) Créer la clé et le raccourci SSH (`printf` plutôt qu'un bloc
+`cat <<EOF`, qui se casse facilement au copier-coller) :
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/kine_maxillo_deploy -N "" -C "vps kine-maxillo"
+printf '\nHost github-kine-maxillo\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/kine_maxillo_deploy\n    IdentitiesOnly yes\n' >> ~/.ssh/config
+chmod 600 ~/.ssh/config
+ssh -G github-kine-maxillo | grep -E "^(hostname|identityfile) "
+```
+→ attendu : `hostname github.com` et `identityfile ~/.ssh/kine_maxillo_deploy`.
+
+b) Ajouter la clé publique sur GitHub : afficher `cat
+~/.ssh/kine_maxillo_deploy.pub`, puis repo → Settings → Deploy keys → Add
+deploy key, **sans** cocher "Allow write access".
+
+c) Tester puis cloner :
+
+```bash
+ssh -T git@github-kine-maxillo     # "yes" à la question d'empreinte la 1re fois
+git clone -b main git@github-kine-maxillo:CharlyBrocard/kine-maxillo.git /var/www/kine-maxillo
+```
+→ attendu : `Hi CharlyBrocard/kine-maxillo! You've successfully
+authenticated…` ("does not provide shell access" est normal).
+
+**2. Fichier `.env` de production**
+
+```bash
+cd /var/www/kine-maxillo
+cp deploy/env.production.example .env && chmod 600 .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"     # à copier dans .env
+echo "NEXTAUTH_SECRET=$(openssl rand -base64 32)"    # à copier dans .env
+nano .env
+```
+
+- `ADMIN_EMAIL` : l'email de connexion au backoffice.
+- `ADMIN_PASSWORD_HASH` : à générer **sur le poste de dev, depuis le
+  dossier du projet** (là où `bcryptjs` est installé). Le mot de passe est
+  demandé sans être affiché ni gardé dans l'historique — en choisir un
+  long (12 caractères ou plus) :
+  ```bash
+  read -rs -p "Mot de passe admin : " PW; echo; PW="$PW" node -e "require('bcryptjs').hash(process.env.PW, 10).then(console.log)"; unset PW
+  ```
+  Coller le résultat **entre apostrophes** : `ADMIN_PASSWORD_HASH='$2b$10$…'`
+  (sinon docker compose interprète les `$` et tronque le hash).
+- `BREVO_API_KEY` : de préférence une clé dédiée à la prod (révocable
+  séparément de celle du dev).
+
+Vérifier, sans afficher les secrets :
+
+```bash
+grep -E "^[A-Z_]+=" .env | while IFS='=' read -r k v; do [ -z "$v" ] && echo "VIDE : $k" || echo "ok   : $k"; done
+grep "^ADMIN_PASSWORD_HASH=" .env | sed -E 's/[./A-Za-z0-9]{53}/<53 car.>/'
+```
+→ attendu : que des `ok`, et `ADMIN_PASSWORD_HASH='$2b$10$<53 car.>'`.
+
+**3. Démarrer l'application**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build      # plusieurs minutes sur 1 CPU
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs migrate | tail -3
+curl -sI http://127.0.0.1:3001 | head -1
+```
+→ attendu : `app` et `db` "Up" (db "healthy"), "All migrations have been
+successfully applied", `HTTP/1.1 200 OK`.
+
+**4. Nginx** (partagé avec les autres sites du VPS : `nginx -t` valide
+toute la config **avant** le rechargement — en cas d'erreur, rien n'est
+rechargé et les autres sites continuent de tourner)
+
+```bash
+cp deploy/nginx/kine-maxillo-lyon.com.conf /etc/nginx/sites-available/kine-maxillo-lyon.com
+ln -s /etc/nginx/sites-available/kine-maxillo-lyon.com /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+curl -sI -H "Host: kine-maxillo-lyon.com" http://127.0.0.1 | head -1
+curl -sI -H "Host: www.kine-maxillo-lyon.com" http://127.0.0.1 | grep -iE "^HTTP|^location"
+```
+→ attendu : `200 OK`, puis `301` vers `https://kine-maxillo-lyon.com/`.
+
+**5. DNS chez OVH** (rend le site public) — Web Cloud → Noms de domaine →
+`kine-maxillo-lyon.com` → Zone DNS. `<IP_DU_VPS>` : l'IPv4 publique du
+serveur, affichée sur le VPS par `curl -4 ifconfig.me`.
+
+- **modifier** (pas ajouter) les enregistrements A de la racine et de
+  `www` → `<IP_DU_VPS>` ;
+- **supprimer** le TXT `1|www.kine-maxillo-lyon.com` et la redirection
+  web OVH (onglet "Redirection"), qui intercepterait le trafic ;
+- **ne pas créer d'AAAA** (pas d'IPv6 sur le VPS) ;
+- **ne pas toucher** aux enregistrements email : MX, SPF (`v=spf1…`),
+  `brevo-code`, DKIM `brevo1`/`brevo2`, DMARC `_dmarc`.
+
+```bash
+dig +short kine-maxillo-lyon.com www.kine-maxillo-lyon.com   # attendre <IP_DU_VPS> pour les deux
+```
+
+**6. HTTPS** (Let's Encrypt doit pouvoir joindre le VPS par le domaine :
+uniquement après l'étape 5)
+
+```bash
+certbot --nginx -d kine-maxillo-lyon.com -d www.kine-maxillo-lyon.com
+curl -sI https://kine-maxillo-lyon.com | head -1        # HTTP/2 200
+curl -sI http://kine-maxillo-lyon.com | grep -i location  # redirection vers https
+certbot renew --dry-run                                   # le renouvellement automatique fonctionnera
+```
+
+La connexion au backoffice (`/espace`) ne fonctionne **qu'en HTTPS** :
+avec `NEXTAUTH_URL` en `https://`, le cookie de session est marqué
+"Secure" et le navigateur le refuse en HTTP. Tester la connexion
+praticienne à ce moment-là.
+
+**7. Sauvegardes quotidiennes** (3 h du matin, 14 jours gardés dans
+`/var/backups/kine-maxillo` — voir "Sauvegardes et restauration")
+
+```bash
+crontab -l 2>/dev/null | grep -q kine-maxillo/deploy/backup.sh \
+  || (crontab -l 2>/dev/null; echo "0 3 * * * /var/www/kine-maxillo/deploy/backup.sh >> /var/log/kine-maxillo-backup.log 2>&1") | crontab -
+crontab -l | grep kine-maxillo          # une seule ligne
+/var/www/kine-maxillo/deploy/backup.sh  # première sauvegarde tout de suite
+ls -l /var/backups/kine-maxillo/
+```
+→ attendu : "Sauvegarde OK", un fichier `.sql.gz` en `-rw-------`. Le
+lendemain, vérifier `/var/log/kine-maxillo-backup.log`.
+
+**8. Brevo** : Sécurité → Adresses IP autorisées → ajouter
+`<IP_DU_VPS>`, puis activer le blocage des IP non autorisées pour les
+clés API. Tester ensuite une vraie prise de RDV : si l'email de validation
+n'arrive pas, voir `docker compose -f docker-compose.prod.yml logs app`.
 
 ### Mise à jour du site (après une modif)
 
