@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Sidebar } from "@/components/backoffice/Sidebar";
+import { SessionKeepAlive } from "@/components/backoffice/SessionKeepAlive";
 
 export default async function DashboardLayout({
   children,
@@ -13,6 +14,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-linen">
+      <SessionKeepAlive />
       <Sidebar />
       <div className="flex flex-1 flex-col">{children}</div>
     </div>
