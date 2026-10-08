@@ -43,10 +43,13 @@ function summaryLines(appointment: AppointmentForEmail): string[] {
   ];
 }
 
+type Checklist = { title: string; items: string[] };
+
 /** Gabarit HTML commun : paragraphes (texte brut, échappés ici) + bouton optionnel. */
 function layout(opts: {
   paragraphs: string[];
   summary?: string[];
+  checklist?: Checklist;
   button?: { label: string; href: string };
   footer?: string;
 }): string {
@@ -60,6 +63,11 @@ function layout(opts: {
         )
         .join("")}</div>`
     : "";
+  const checklist = opts.checklist
+    ? `<p style="margin:0 0 8px;font-size:16px;font-weight:600;color:#23312C">${escapeHtml(opts.checklist.title)}</p><ul style="margin:0 0 20px;padding-left:22px;font-size:16px;line-height:1.6;color:#23312C">${opts.checklist.items
+        .map((item) => `<li>${escapeHtml(item)}</li>`)
+        .join("")}</ul>`
+    : "";
   const button = opts.button
     ? `<p style="margin:0 0 20px"><a href="${escapeHtml(opts.button.href)}" style="display:inline-block;padding:14px 24px;border-radius:10px;background:#3F6F63;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none">${escapeHtml(opts.button.label)}</a></p>`
     : "";
@@ -69,7 +77,7 @@ function layout(opts: {
   return `<!doctype html><html lang="fr"><body style="margin:0;padding:24px;background:#F6F4EE;font-family:Arial,Helvetica,sans-serif"><div style="max-width:560px;margin:0 auto;padding:28px;border-radius:16px;background:#ffffff">${opts.paragraphs
     .slice(0, 1)
     .map(p)
-    .join("")}${summary}${opts.paragraphs.slice(1).map(p).join("")}${button}<p style="margin:0;font-size:15px;line-height:1.5;color:#23312C">${escapeHtml(siteConfig.praticienne)} — ${escapeHtml(siteConfig.qualification)}<br>${escapeHtml(siteConfig.telephone)}</p>${footer}</div></body></html>`;
+    .join("")}${summary}${checklist}${opts.paragraphs.slice(1).map(p).join("")}${button}<p style="margin:0;font-size:15px;line-height:1.5;color:#23312C">${escapeHtml(siteConfig.praticienne)} — ${escapeHtml(siteConfig.qualification)}<br>${escapeHtml(siteConfig.telephone)}</p>${footer}</div></body></html>`;
 }
 
 function signature(): string {
@@ -101,7 +109,30 @@ export function confirmationRequestEmail(
   };
 }
 
-/** Au patient, une fois le RDV confirmé : récapitulatif + lien d'annulation. */
+const PAYMENT_MEANS = "Un moyen de paiement : carte bancaire, espèces ou virement";
+
+/**
+ * Documents à apporter. La pressothérapie n'est pas remboursée (acte de
+ * confort, voir /tarifs) : seul le moyen de paiement est utile.
+ */
+function whatToBring(category: AppointmentForEmail["category"]): Checklist {
+  const items =
+    category === "PRESSOTHERAPIE"
+      ? [PAYMENT_MEANS]
+      : [
+          "Votre carte Vitale",
+          "Votre ordonnance",
+          "Votre carte de mutuelle",
+          PAYMENT_MEANS,
+        ];
+  return { title: "À apporter le jour du rendez-vous :", items };
+}
+
+function checklistText(checklist: Checklist): string[] {
+  return [checklist.title, ...checklist.items.map((item) => `- ${item}`)];
+}
+
+/** Au patient, une fois le RDV confirmé : récapitulatif, documents à apporter, lien d'annulation. */
 export function appointmentConfirmedEmail(
   appointment: AppointmentForEmail,
   cancellationToken: string
@@ -109,14 +140,16 @@ export function appointmentConfirmedEmail(
   const link = `${siteUrl()}/rendez-vous/annule?token=${cancellationToken}`;
   const intro = `Bonjour ${appointment.patientName}, votre rendez-vous est confirmé :`;
   const cancel = "Un empêchement ? Merci d'annuler au plus tôt pour libérer le créneau :";
+  const toBring = whatToBring(appointment.category);
   return {
     to: appointment.patientEmail,
     toName: appointment.patientName,
     subject: `Rendez-vous confirmé — ${when(appointment)}`,
-    text: [intro, "", ...summaryLines(appointment), "", siteConfig.accesPmr, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
+    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", siteConfig.accesPmr, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
     html: layout({
       paragraphs: [intro, siteConfig.accesPmr, cancel],
       summary: summaryLines(appointment),
+      checklist: toBring,
       button: { label: "Annuler mon rendez-vous", href: link },
       footer: NO_REPLY_NEEDED,
     }),

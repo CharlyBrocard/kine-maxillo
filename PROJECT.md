@@ -61,6 +61,13 @@ Trois axes de service :
 - Photos (cabinet, portrait) — placeholders en attendant la DA
 - Tarif de la pressothérapie
 
+Point à trancher (avec la praticienne) : documents à apporter pour un RDV
+de **pressothérapie**. L'email de confirmation (`whatToBring` dans
+`src/lib/email/templates.ts`) ne demande actuellement qu'un moyen de
+paiement (acte de confort, non remboursé), contre carte Vitale +
+ordonnance + carte de mutuelle + paiement pour la rééducation. À changer
+si certaines mutuelles la prennent en charge.
+
 Point à trancher : le domaine réservé est `kine-maxillo-lyon.com`, mais le
 cabinet est à Millery (ouest lyonnais), pas à Lyon — à voir si ça reste le
 bon nom de domaine une fois le SEO local travaillé.
