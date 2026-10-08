@@ -5,6 +5,7 @@ import { Stepper } from "@/components/booking/Stepper";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
 import { categories, categoryLabel, type CategoryId } from "@/lib/categories";
+import { maxilloMotifs, MOTIF_AUTRE } from "@/lib/motifs";
 import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 import {
   addUTCDays,
@@ -18,12 +19,8 @@ import {
   PATIENT_EMAIL_MAX,
   PATIENT_NAME_MAX,
   PATIENT_PHONE_MAX,
-  REASON_MAX,
+  REASON_PRECISION_MAX,
 } from "@/lib/input-limits";
-
-// Le motif envoyé est "<catégorie> — <message>" : on garde de la marge
-// pour le préfixe sous la limite REASON_MAX de l'API.
-const MESSAGE_MAX = REASON_MAX - 100;
 
 type Step = 1 | 2 | 3;
 type ApiSlot = { start: string; end: string };
@@ -68,6 +65,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
+  const [motif, setMotif] = useState("");
   const [message, setMessage] = useState("");
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -152,8 +150,6 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
     setSubmitError(null);
 
     try {
-      const label = categoryLabel(category);
-      const reason = message.trim() ? `${label} — ${message.trim()}` : label;
       const data = await gqlRequest<{
         requestAppointment: { appointment: { id: string } };
       }>(REQUEST_APPOINTMENT_MUTATION, {
@@ -163,7 +159,9 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
           patientName: nom,
           patientPhone: telephone,
           patientEmail: email,
-          reason,
+          // Le serveur compose le motif enregistré ("<motif> — <précision>").
+          motif: category === "MAXILLO_FACIAL" ? motif : null,
+          reason: message,
         },
       });
       setAppointmentId(data.requestAppointment.appointment.id);
@@ -204,6 +202,7 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
 
   function changeCategory() {
     setCategory(null);
+    setMotif("");
     setSelectedSlot(null);
     setApiSlots([]);
     setWeekOffset(0);
@@ -411,12 +410,42 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                   className="h-[56px] rounded-[10px] border-2 border-accent bg-white px-4.5 text-[17px] text-ink focus:outline-none"
                 />
               </label>
+              {category === "MAXILLO_FACIAL" && (
+                <label className="col-span-full flex flex-col gap-1.5 text-[15px] text-body">
+                  Motif de consultation
+                  <select
+                    required
+                    value={motif}
+                    onChange={(e) => setMotif(e.target.value)}
+                    className="h-[56px] w-full rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4 text-[16.5px] text-ink focus:border-accent focus:outline-none"
+                  >
+                    <option value="" disabled>
+                      Choisissez un motif…
+                    </option>
+                    {maxilloMotifs.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className="col-span-full flex flex-col gap-1.5 text-[15px] text-body">
-                Motif — précisez si besoin{" "}
-                <span className="text-faint">(optionnel)</span>
+                {category !== "MAXILLO_FACIAL" ? (
+                  <span>
+                    Motif — précisez si besoin <span className="text-faint">(optionnel)</span>
+                  </span>
+                ) : motif === MOTIF_AUTRE ? (
+                  <span>Précisez le motif</span>
+                ) : (
+                  <span>
+                    Précisions <span className="text-faint">(optionnel)</span>
+                  </span>
+                )}
                 <textarea
                   rows={3}
-                  maxLength={MESSAGE_MAX}
+                  required={category === "MAXILLO_FACIAL" && motif === MOTIF_AUTRE}
+                  maxLength={REASON_PRECISION_MAX}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Ex. : douleur à la mâchoire depuis 3 semaines, adressée par le Dr…"

@@ -5,5 +5,7 @@
 export const PATIENT_NAME_MAX = 100;
 export const PATIENT_PHONE_MAX = 20;
 export const PATIENT_EMAIL_MAX = 254;
-/** Le wizard préfixe le motif libre par le libellé de la catégorie. */
+/** Motif enregistré complet : "<motif choisi> — <précision>". */
 export const REASON_MAX = 1000;
+/** Précision libre saisie par le patient (le reste de REASON_MAX va au libellé du motif). */
+export const REASON_PRECISION_MAX = 800;

@@ -74,6 +74,9 @@ export const typeDefs = /* GraphQL */ `
     patientName: String!
     patientPhone: String!
     patientEmail: String!
+    "Identifiant de motif (src/lib/motifs.ts) — obligatoire pour MAXILLO_FACIAL, interdit sinon."
+    motif: String
+    "Précision libre du motif — obligatoire pour le motif AUTRE."
     reason: String
   }
 

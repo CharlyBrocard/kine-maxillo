@@ -3,8 +3,10 @@ import {
   PATIENT_EMAIL_MAX,
   PATIENT_NAME_MAX,
   PATIENT_PHONE_MAX,
-  REASON_MAX,
+  REASON_PRECISION_MAX,
 } from "@/lib/input-limits";
+import { findMaxilloMotif, MOTIF_AUTRE, storedMotifLabel } from "@/lib/motifs";
+import type { Category } from "@prisma/client";
 
 /**
  * Validation des entrées publiques de l'API — le formulaire de
@@ -37,9 +39,13 @@ function singleLine(value: string, field: string, max: number): string {
 }
 
 export type PatientInput = {
+  category: Category;
   patientName: string;
   patientPhone: string;
   patientEmail: string;
+  /** Identifiant d'un motif de src/lib/motifs.ts — obligatoire en MAXILLO_FACIAL, interdit sinon. */
+  motif?: string | null;
+  /** Précision libre — obligatoire pour le motif "Autre". */
   reason?: string | null;
 };
 
@@ -61,17 +67,28 @@ export function validatePatientInput(input: PatientInput): {
   const patientEmail = singleLine(input.patientEmail, "L'email", PATIENT_EMAIL_MAX).toLowerCase();
   if (!EMAIL_PATTERN.test(patientEmail)) throw badInput("L'adresse email est invalide.");
 
-  let reason: string | null = input.reason?.trim() || null;
-  if (reason) {
-    if (reason.length > REASON_MAX) {
-      throw badInput(`Le motif est trop long (${REASON_MAX} caractères max).`);
+  const precision = input.reason?.trim() || null;
+  if (precision) {
+    if (precision.length > REASON_PRECISION_MAX) {
+      throw badInput(`La précision du motif est trop longue (${REASON_PRECISION_MAX} caractères max).`);
     }
-    if (CONTROL_CHARS.test(reason)) throw badInput("Le motif contient des caractères invalides.");
-  } else {
-    reason = null;
+    if (CONTROL_CHARS.test(precision)) throw badInput("Le motif contient des caractères invalides.");
   }
 
-  return { patientName, patientPhone, patientEmail, reason };
+  return { patientName, patientPhone, patientEmail, reason: composeReason(input.category, input.motif, precision) };
+}
+
+/** Motif enregistré : "<libellé du motif> — <précision>" (maxillo), ou la précision seule. */
+function composeReason(category: Category, motifId: string | null | undefined, precision: string | null): string | null {
+  if (category !== "MAXILLO_FACIAL") {
+    if (motifId) throw badInput("Aucun motif à choisir pour cette catégorie.");
+    return precision;
+  }
+  const motif = motifId ? findMaxilloMotif(motifId) : undefined;
+  if (!motif) throw badInput("Choisissez le motif de consultation.");
+  if (motif.id === MOTIF_AUTRE && !precision) throw badInput("Précisez le motif de consultation.");
+  const label = storedMotifLabel(motif.id);
+  return precision ? `${label} — ${precision}` : label;
 }
 
 /** Tokens générés par generateToken() : 32 octets en hexadécimal. */

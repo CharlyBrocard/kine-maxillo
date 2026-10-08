@@ -127,6 +127,7 @@ describe("requestAppointment", () => {
         input: {
           slotStart: futureDate(DAY).toISOString(),
           category: "MAXILLO_FACIAL",
+          motif: "ATM",
           patientName: "Personne",
           patientPhone: "0600000000",
           patientEmail: "personne@example.com",
@@ -386,7 +387,8 @@ function bookingInput(start: Date, overrides: Record<string, unknown> = {}) {
     patientName: "Marie Curie",
     patientPhone: "06 11 11 11 11",
     patientEmail: "marie@example.com",
-    reason: "Rééducation maxillo-faciale — douleur ATM",
+    motif: "ATM",
+    reason: "depuis 3 semaines",
     ...overrides,
   };
 }
@@ -424,7 +426,11 @@ describe("requestAppointment — sécurité", () => {
     ["invalid phone", { patientPhone: "appelez-moi" }],
     ["too short phone", { patientPhone: "0612" }],
     ["newline in name", { patientName: "Marie\nCurie" }],
-    ["reason too long", { reason: "x".repeat(1001) }],
+    ["precision too long", { reason: "x".repeat(801) }],
+    ["missing motif for maxillo-facial", { motif: null }],
+    ["unknown motif", { motif: "INCONNU" }],
+    ["'Autre' without precision", { motif: "AUTRE", reason: "  " }],
+    ["a motif for pressotherapy", { category: "PRESSOTHERAPIE", motif: "ATM" }],
   ])("rejects %s with BAD_USER_INPUT and creates nothing", async (_, overrides) => {
     const start = futureDate(DAY);
     await createSlot(start, "MAXILLO_FACIAL");
@@ -435,12 +441,29 @@ describe("requestAppointment — sécurité", () => {
     expect(await prisma.appointment.count()).toBe(0);
   });
 
-  it("stores trimmed values, a lowercased email and null for an empty reason", async () => {
+  it.each([
+    ["chosen motif + precision", { motif: "BRUXISME", reason: " la nuit " }, "Bruxisme, serrement des dents — la nuit"],
+    ["chosen motif alone", { motif: "BRUXISME", reason: "" }, "Bruxisme, serrement des dents"],
+    ["'Autre' + precision", { motif: "AUTRE", reason: "acouphènes" }, "Autre — acouphènes"],
+    ["pressotherapy precision", { category: "PRESSOTHERAPIE", motif: null, reason: "jambes lourdes" }, "jambes lourdes"],
+  ])("stores the reason composed server-side: %s", async (_, overrides, expected) => {
     const start = futureDate(DAY);
-    await createSlot(start, "MAXILLO_FACIAL");
+    await createSlot(start, (overrides as { category?: "PRESSOTHERAPIE" }).category ?? "MAXILLO_FACIAL");
+
+    const result = await exec(REQUEST_MUTATION, { input: bookingInput(start, overrides) });
+
+    expect(result.errors).toBeUndefined();
+    expect((await prisma.appointment.findFirstOrThrow()).reason).toBe(expected);
+  });
+
+  it("stores trimmed values, a lowercased email and null for an empty pressotherapy reason", async () => {
+    const start = futureDate(DAY);
+    await createSlot(start, "PRESSOTHERAPIE");
 
     const result = await exec(REQUEST_MUTATION, {
       input: bookingInput(start, {
+        category: "PRESSOTHERAPIE",
+        motif: null,
         patientName: "  Marie Curie ",
         patientEmail: " Marie@Example.COM ",
         reason: "   ",

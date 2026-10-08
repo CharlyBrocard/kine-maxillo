@@ -131,6 +131,7 @@ export const resolvers = {
           patientName: string;
           patientPhone: string;
           patientEmail: string;
+          motif?: string | null;
           reason?: string | null;
         };
       },

@@ -92,6 +92,17 @@ bon nom de domaine une fois le SEO local travaillé.
   hebdomadaire : la praticienne ouvre les créneaux un par un (date + heure
   + catégorie) depuis le backoffice. Plus simple à gérer pour un volume de
   RDV faible, quitte à devoir en rajouter plus souvent.
+- **Motif de consultation en liste de choix** (catégorie "Rééducation
+  maxillo-faciale" uniquement) : le patient choisit un motif parmi une
+  liste (`src/lib/motifs.ts`, avec "Autre"), plus une précision libre
+  facultative — obligatoire pour "Autre". Plus lisible pour la
+  praticienne dans l'agenda et cohérent avec la minimisation (une liste
+  incite à en dire le minimum utile). Le motif est composé et validé côté
+  serveur, enregistré dans `Appointment.reason` sous la forme
+  "<motif> — <précision>" (pas de migration). La liste inclut la
+  rééducation fonctionnelle, fusionnée dans cette catégorie. Pour la
+  pressothérapie : précision libre facultative seule, comme avant.
+  **Libellés à faire valider par la praticienne.**
 - **Donnée de santé potentielle** : le champ "motif" du RDV est traité comme
   sensible → minimisation, purge après un délai, hébergement maîtrisé (VPS
   propre plutôt que SaaS US).
