@@ -4,6 +4,7 @@ import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-const
 import { formatUTCDate, formatUTCTime } from "@/lib/date-utils";
 import { siteConfig } from "@/lib/site-config";
 import { practitionerNotificationEmail, siteUrl, type Email } from "@/lib/email/send";
+import { buildIcs } from "@/lib/email/ics";
 
 /**
  * Contenu des emails transactionnels. Le motif du RDV n'apparaît dans
@@ -13,8 +14,19 @@ import { practitionerNotificationEmail, siteUrl, type Email } from "@/lib/email/
 
 type AppointmentForEmail = Pick<
   Appointment,
-  "slotStart" | "category" | "patientName" | "patientEmail" | "patientPhone"
+  "id" | "slotStart" | "category" | "patientName" | "patientEmail" | "patientPhone"
 >;
+
+const ICS_NAME = "rendez-vous.ics";
+
+function cabinetAddress(): string {
+  return `${siteConfig.adresseLigne1}, ${siteConfig.adresseLigne2}`;
+}
+
+/** Même UID pour le patient et la praticienne : un même RDV, deux agendas. */
+function eventUid(appointment: AppointmentForEmail): string {
+  return `${appointment.id}@kine-maxillo-lyon.com`;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -141,19 +153,33 @@ export function appointmentConfirmedEmail(
   const intro = `Bonjour ${appointment.patientName}, votre rendez-vous est confirmé :`;
   const cancel = "Un empêchement ? Merci d'annuler au plus tôt pour libérer le créneau :";
   const toBring = whatToBring(appointment.category);
+  const ics = buildIcs({
+    uid: eventUid(appointment),
+    start: appointment.slotStart,
+    summary: `Kiné — ${siteConfig.praticienne}`,
+    location: cabinetAddress(),
+    description: [
+      categoryLabel(appointment.category),
+      siteConfig.indicationAcces,
+      siteConfig.telephone,
+      `Annuler : ${link}`,
+    ].join("\n"),
+  });
+  const calendarHint = "Le rendez-vous est joint à cet email : ouvrez la pièce jointe pour l'ajouter à votre agenda.";
   const access = `Accès : ${siteConfig.indicationAcces} ${siteConfig.accesPmr}.`;
   return {
     to: appointment.patientEmail,
     toName: appointment.patientName,
     subject: `Rendez-vous confirmé — ${when(appointment)}`,
-    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", access, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
+    text: [intro, "", ...summaryLines(appointment), "", ...checklistText(toBring), "", access, "", calendarHint, "", cancel, link, "", NO_REPLY_NEEDED, "", signature()].join("\n"),
     html: layout({
-      paragraphs: [intro, access, cancel],
+      paragraphs: [intro, access, calendarHint, cancel],
       summary: summaryLines(appointment),
       checklist: toBring,
       button: { label: "Annuler mon rendez-vous", href: link },
       footer: NO_REPLY_NEEDED,
     }),
+    attachments: [{ name: ICS_NAME, content: ics }],
   };
 }
 
@@ -170,7 +196,12 @@ export function cancelledByPractitionerEmail(appointment: AppointmentForEmail): 
   };
 }
 
-function practitionerEmail(subject: string, intro: string, appointment: AppointmentForEmail): Email | null {
+function practitionerEmail(
+  subject: string,
+  intro: string,
+  appointment: AppointmentForEmail,
+  withCalendar = false
+): Email | null {
   const to = practitionerNotificationEmail();
   if (!to) return null;
   const contact = [`${appointment.patientName}`, appointment.patientPhone, appointment.patientEmail];
@@ -184,6 +215,24 @@ function practitionerEmail(subject: string, intro: string, appointment: Appointm
       summary: [when(appointment), categoryLabel(appointment.category)],
       button: { label: "Ouvrir l'agenda", href: `${siteUrl()}/espace/agenda` },
     }),
+    // Sans le motif (donnée de santé) : l'agenda est synchronisé chez Apple/Google.
+    ...(withCalendar
+      ? {
+          attachments: [
+            {
+              name: ICS_NAME,
+              content: buildIcs({
+                uid: eventUid(appointment),
+                start: appointment.slotStart,
+                summary: `${appointment.patientName} — ${categoryLabel(appointment.category)}`,
+                location: cabinetAddress(),
+                description: [appointment.patientPhone, appointment.patientEmail, `Agenda : ${siteUrl()}/espace/agenda`].join("\n"),
+                url: `${siteUrl()}/espace/agenda`,
+              }),
+            },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -192,7 +241,8 @@ export function newAppointmentNotification(appointment: AppointmentForEmail): Em
   return practitionerEmail(
     `Nouveau RDV — ${appointment.patientName}, ${when(appointment)}`,
     "Nouveau rendez-vous confirmé :",
-    appointment
+    appointment,
+    true
   );
 }
 

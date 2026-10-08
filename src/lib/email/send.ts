@@ -14,6 +14,8 @@ export type Email = {
   subject: string;
   html: string;
   text: string;
+  /** Pièces jointes texte (ex. rendez-vous.ics) — encodées en base64 pour Brevo. */
+  attachments?: Array<{ name: string; content: string }>;
 };
 
 export const devOutbox: Email[] = [];
@@ -56,6 +58,14 @@ export async function sendEmail(email: Email): Promise<void> {
       subject: email.subject,
       htmlContent: email.html,
       textContent: email.text,
+      ...(email.attachments?.length
+        ? {
+            attachment: email.attachments.map((a) => ({
+              name: a.name,
+              content: Buffer.from(a.content, "utf8").toString("base64"),
+            })),
+          }
+        : {}),
     }),
     signal: AbortSignal.timeout(10_000),
   });
