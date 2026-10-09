@@ -56,12 +56,19 @@ Trois axes de service :
 - ~~Téléphone~~ — 04 72 30 74 85
 - ~~Email de contact~~ — `contact@kine-maxillo-lyon.com` (redirection OVH
   vers la Gmail dédiée du cabinet, comme `rendezvous@`)
-- Numéro RPPS/ADELI + SIRET (mentions légales obligatoires, profession de
-  santé réglementée par l'Ordre des Masseurs-Kinésithérapeutes)
-- Photos (cabinet, portrait) — placeholders en attendant la DA
-- Tarif de la pressothérapie
+- ~~Numéro RPPS/ADELI + SIRET + assurance RCP~~ — renseignés
+  (`src/lib/site-config.ts`)
+- ~~Photos~~ — portrait de la praticienne (accueil, "À propos") +
+  illustrations flat (visuel principal, `/specialites`)
+- ~~Tarif de la pressothérapie~~ — 30 €
+- ~~Hébergeur~~ — Hostinger International Ltd. (Chypre), serveur en
+  France (Paris) : mentions légales + politique de confidentialité
 
-Point à trancher (avec la praticienne) : documents à apporter pour un RDV
+**Validation de la praticienne faite (2026-10-09)** : contenus des pages,
+motifs de consultation, durées de conservation, zone géographique,
+documents à apporter, photo, politique de confidentialité.
+
+~~Point à trancher~~ — validé tel quel : documents à apporter pour un RDV
 de **pressothérapie**. L'email de confirmation (`whatToBring` dans
 `src/lib/email/templates.ts`) ne demande actuellement qu'un moyen de
 paiement (acte de confort, non remboursé), contre carte Vitale +
@@ -102,7 +109,7 @@ bon nom de domaine une fois le SEO local travaillé.
   "<motif> — <précision>" (pas de migration). La liste inclut la
   rééducation fonctionnelle, fusionnée dans cette catégorie. Pour la
   pressothérapie : précision libre facultative seule, comme avant.
-  **Libellés à faire valider par la praticienne.**
+  Libellés validés par la praticienne (2026-10-09).
 - **Donnée de santé potentielle** : le champ "motif" du RDV est traité comme
   sensible → minimisation, purge après un délai, hébergement maîtrisé (VPS
   propre plutôt que SaaS US).
@@ -358,7 +365,8 @@ type Mutation {
     plutôt que branché : `/contact` affiche téléphone + email cliquable
     (`mailto:`), suffisant pour le volume du cabinet et sans nouvelle
     surface d'attaque (spam, données patient en clair par email).
-16. **Avant la mise en prod — relecture du contenu et vraies images**
+16. ~~**Avant la mise en prod — relecture du contenu et vraies images**~~
+    — fait (validation de la praticienne le 2026-10-09).
     (à faire par l'utilisateur, avec la praticienne si besoin) :
     - **Relire le texte de toutes les pages vitrine** (accueil,
       `/specialites`, `/tarifs`, `/contact`, `/mentions-legales`) : il
@@ -396,14 +404,13 @@ type Mutation {
       supprimées 30 jours après la demande, tous les RDV 12 mois après
       leur date (`UNCONFIRMED_RETENTION_DAYS`,
       `APPOINTMENT_RETENTION_DAYS`). Avant : coordonnées conservées
-      indéfiniment. **Durées à valider avec la praticienne.**
+      indéfiniment. Durées validées par la praticienne (2026-10-09).
     - Logs Docker de prod bornés (rotation 3 × 10 Mo).
-    - À compléter / vérifier avant mise en ligne : coordonnées de
-      l'hébergeur (Hostinger) dans les mentions légales, et localisation
-      du datacenter du VPS (UE ?) ; durée de rotation des logs Nginx sur
-      le VPS (`/etc/logrotate.d/nginx`, "quelques semaines" annoncé) ;
-      relecture du texte (idéalement par la praticienne, voire un
-      juriste — ce n'est pas un avis juridique).
+    - ~~Hébergeur et localisation du serveur~~ (Hostinger, Paris) et
+      ~~relecture par la praticienne~~ — faits. Logs Nginx du VPS :
+      rotation quotidienne, 14 jours conservés (`/etc/logrotate.d/nginx`,
+      vérifié le 2026-10-09) — annoncé tel quel dans la politique. Pas un
+      avis juridique : une relecture par un juriste reste possible.
 
 18. ~~Fuseau horaire~~ — fait (2026-10-08) : les dates sont désormais de
     vrais instants UTC, et tout ce qui dépend du calendrier (jour,
@@ -444,6 +451,7 @@ type Mutation {
       Saint-Genis-Laval, Oullins. Liste à valider dans
       `siteConfig.communesProches` ; `siteConfig.zone` ("Ouest
       lyonnais", affiché sur le site) à corriger le cas échéant.
+      → Validé par la praticienne tel quel (2026-10-09).
     - **Fiche Google Business Profile** : le levier n°1 du SEO local
       (carte Google, "kiné près de moi"). Vérifier que nom, adresse et
       téléphone y sont **strictement identiques** au site, y ajouter

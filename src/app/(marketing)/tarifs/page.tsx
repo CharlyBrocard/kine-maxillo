@@ -93,7 +93,7 @@ export default function TarifsPage() {
                 <span className="text-base leading-relaxed text-body">
                   60 % par l&apos;Assurance Maladie, le complément par votre
                   mutuelle selon votre contrat. Pensez à apporter votre
-                  ordonnance et votre carte Vitale.
+                  ordonnance, votre carte Vitale et votre carte de mutuelle.
                 </span>
               </div>
               <ButtonLink

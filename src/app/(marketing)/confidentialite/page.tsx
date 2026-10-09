@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/confidentialite" },
 };
 
-const LAST_UPDATE = "8 octobre 2026";
+const LAST_UPDATE = "9 octobre 2026";
 const BACKUP_RETENTION_DAYS = 14;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -156,7 +156,7 @@ export default function ConfidentialitePage() {
                 />
                 <Row
                   what="Journaux techniques du serveur (adresse IP)"
-                  duration="Quelques semaines au plus, par rotation automatique"
+                  duration="14 jours, puis suppression automatique"
                 />
               </tbody>
             </table>
@@ -178,7 +178,10 @@ export default function ConfidentialitePage() {
             <ul className="flex list-disc flex-col gap-2 pl-5">
               <li>
                 <strong className="text-ink">Hébergement du site et de la base de données</strong>{" "}
-                : serveur privé loué par la praticienne (voir les{" "}
+                : serveur privé loué par la praticienne auprès de{" "}
+                {siteConfig.hebergeur.nom}, situé en{" "}
+                {siteConfig.hebergeur.localisationServeur} — vos données restent
+                dans l&apos;Union européenne (voir les{" "}
                 <Link href="/mentions-legales" className="underline underline-offset-4">
                   mentions légales
                 </Link>
