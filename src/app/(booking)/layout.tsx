@@ -11,7 +11,9 @@ export default function BookingLayout({
       <header className="flex items-center justify-between border-b border-border-soft px-6 py-5 sm:px-12">
         <Link href="/" className="flex flex-col leading-tight">
           <span className="font-serif text-xl">{siteConfig.praticienne}</span>
-          <span className="eyebrow">Kinésithérapie · {siteConfig.ville}</span>
+          <span className="eyebrow">
+            Masseur Kinésithérapeute · {siteConfig.ville}
+          </span>
         </Link>
         <div className="flex items-center gap-3 text-base text-body sm:gap-6">
           <span className="hidden sm:inline">Besoin d&apos;aide ?</span>

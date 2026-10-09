@@ -6,7 +6,13 @@ import { AtmIllustration } from "@/components/illustrations/AtmIllustration";
 import { PressotherapieIllustration } from "@/components/illustrations/PressotherapieIllustration";
 import { ReeducationIllustration } from "@/components/illustrations/ReeducationIllustration";
 
-function Bullet({ children, tone = "sauge" }: { children: React.ReactNode; tone?: "sauge" | "terracotta" }) {
+function Bullet({
+  children,
+  tone = "sauge",
+}: {
+  children: React.ReactNode;
+  tone?: "sauge" | "terracotta";
+}) {
   return (
     <div className="flex gap-3 text-[17px] text-[#3B4A44]">
       <span className={tone === "sauge" ? "text-accent" : "text-terracotta"}>
@@ -35,8 +41,8 @@ export default function SpecialitesPage() {
           </h1>
           <p className="max-w-2xl text-lg leading-relaxed text-body">
             Trois domaines complémentaires. Si vous hésitez sur le motif de
-            consultation, appelez le cabinet : nous en parlons avant de fixer
-            un rendez-vous.
+            consultation, appelez le cabinet : nous en parlons avant de fixer un
+            rendez-vous.
           </p>
         </div>
       </section>
@@ -57,11 +63,10 @@ export default function SpecialitesPage() {
             </div>
             <p className="text-[17.5px] leading-relaxed text-body">
               L&apos;articulation temporo-mandibulaire est sollicitée des
-              milliers de fois par jour. Quand elle se dérègle, la douleur
-              peut irradier vers l&apos;oreille, la nuque, les tempes. La
-              rééducation combine thérapie manuelle douce, exercices de
-              mobilité et travail sur les habitudes de mastication et de
-              ventilation.
+              milliers de fois par jour. Quand elle se dérègle, la douleur peut
+              irradier vers l&apos;oreille, la nuque, les tempes. La rééducation
+              combine thérapie manuelle douce, exercices de mobilité et travail
+              sur les habitudes de mastication et de ventilation.
             </p>
             <div className="flex flex-col gap-2.5 pt-1">
               <Bullet>
@@ -101,27 +106,26 @@ export default function SpecialitesPage() {
               <h2 className="font-serif text-3xl">Rééducation fonctionnelle</h2>
             </div>
             <p className="text-[17.5px] leading-relaxed text-body">
-              Retrouver la mobilité, la force et la confiance dans le
-              mouvement, à votre rythme. Un bilan initial fixe des objectifs
-              concrets, réévalués au fil des séances.
+              Retrouver la mobilité, la force et la confiance dans le mouvement,
+              à votre rythme. Un bilan initial fixe des objectifs concrets,
+              réévalués au fil des séances.
             </p>
             <div className="flex flex-col gap-2.5">
               <Bullet>
                 Post-opératoire : prothèse de hanche ou de genou,
-                ligamentoplastie, chirurgie de l&apos;épaule
+                ligamentoplastie.
               </Bullet>
-              <Bullet>
-                Traumatologie : entorses, fractures, tendinopathies
-              </Bullet>
-              <Bullet>
-                Douleurs chroniques du rachis, cervicalgies, lombalgies
-              </Bullet>
+              <Bullet>Traumatologie : entorses, fractures</Bullet>
+              <Bullet>Douleurs chroniques, cervicalgies, lombalgies</Bullet>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="drainage-lymphatique" className="px-6 py-14 sm:px-12 sm:py-16">
+      <section
+        id="drainage-lymphatique"
+        className="px-6 py-14 sm:px-12 sm:py-16"
+      >
         <div className="mx-auto grid max-w-6xl items-start gap-12 md:grid-cols-2">
           <div className="flex flex-col gap-4.5">
             <div className="flex items-center gap-3.5">
@@ -133,16 +137,18 @@ export default function SpecialitesPage() {
               </h2>
             </div>
             <p className="text-[17.5px] leading-relaxed text-body">
-              Des bottes gonflables exercent une pression rythmée sur les
-              jambes pour relancer la circulation lymphatique. Confortable,
-              passif : vous êtes allongée, la séance dure 30 minutes.
+              Des bottes gonflables exercent une pression rythmée sur les jambes
+              pour relancer la circulation lymphatique. Confortable, passif :
+              vous êtes allongée, la séance dure 30 minutes.
             </p>
             <div className="flex flex-col gap-2.5">
               <Bullet tone="terracotta">
                 Jambes lourdes, œdèmes, insuffisance veineuse
               </Bullet>
               <Bullet tone="terracotta">Récupération sportive</Bullet>
-              <Bullet tone="terracotta">Sans prescription — voir les tarifs</Bullet>
+              <Bullet tone="terracotta">
+                Sans prescription — voir les tarifs
+              </Bullet>
             </div>
             <div className="pt-1.5">
               <ButtonLink href="/tarifs">Réserver une séance</ButtonLink>

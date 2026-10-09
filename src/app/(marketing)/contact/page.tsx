@@ -44,7 +44,9 @@ export default function ContactPage() {
                   <br />
                   {siteConfig.adresseLigne2}
                 </span>
-                <span className="text-base text-ink">{siteConfig.indicationAcces}</span>
+                <span className="text-base text-ink">
+                  {siteConfig.indicationAcces}
+                </span>
                 <span className="text-base text-muted">
                   {siteConfig.zone} · {siteConfig.accesPmr}
                 </span>
@@ -53,9 +55,6 @@ export default function ContactPage() {
               <InfoBlock label="Téléphone">
                 <span className="text-[22px] font-semibold">
                   {siteConfig.telephone}
-                </span>
-                <span className="text-base text-muted">
-                  Répondeur en dehors des heures de consultation
                 </span>
               </InfoBlock>
 
