@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Header } from "@/components/marketing/Header";
 import { Pill } from "@/components/ui/Pill";
 import { ButtonLink } from "@/components/ui/Button";
-import { PhotoPlaceholder } from "@/components/ui/PhotoPlaceholder";
+import { CabinetIllustration } from "@/components/illustrations/CabinetIllustration";
 import { siteConfig } from "@/lib/site-config";
 import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
 
@@ -76,10 +77,7 @@ export default function AccueilPage() {
               <span>Conventionné secteur 1</span>
             </div>
           </div>
-          <PhotoPlaceholder
-            label="photo cabinet / praticienne"
-            className="h-72 sm:h-[460px]"
-          />
+          <CabinetIllustration className="h-72 sm:h-[460px]" />
         </div>
       </section>
 
@@ -128,10 +126,15 @@ export default function AccueilPage() {
 
       <section className="bg-sable px-6 py-16 sm:px-12 sm:py-20">
         <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-          <PhotoPlaceholder
-            label="portrait praticienne"
-            className="h-72 sm:h-[380px]"
-          />
+          <div className="relative h-72 overflow-hidden rounded-2xl sm:h-[380px]">
+            <Image
+              src="/images/johanna-rouzier.jpg"
+              alt={`${siteConfig.praticienne}, masseur-kinésithérapeute à ${siteConfig.ville}`}
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover object-[50%_30%]"
+            />
+          </div>
           <div className="flex flex-col gap-5">
             <span className="eyebrow">À propos</span>
             <h3 className="text-balance font-serif text-3xl leading-tight sm:text-4xl">
