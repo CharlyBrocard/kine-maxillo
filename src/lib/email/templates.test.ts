@@ -100,3 +100,13 @@ describe("Google Agenda link", () => {
     expect(email.html).not.toContain("Ouvrir l&#39;agenda");
   });
 });
+
+describe("session duration in emails", () => {
+  it("is not shown for maxillo-facial (variable duration), but shown for pressotherapy", () => {
+    const maxillo = appointmentConfirmedEmail({ ...base, category: "MAXILLO_FACIAL" }, "tok");
+    const presso = appointmentConfirmedEmail({ ...base, category: "PRESSOTHERAPIE" }, "tok");
+    expect(maxillo.text).not.toContain("30 min");
+    expect(maxillo.text).toContain("Rééducation maxillo-faciale\n");
+    expect(presso.text).toContain("Pressothérapie · 30 min");
+  });
+});

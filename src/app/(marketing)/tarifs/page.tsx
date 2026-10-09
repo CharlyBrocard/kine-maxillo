@@ -22,10 +22,9 @@ export default function TarifsPage() {
               Tarifs
             </h1>
             <p className="text-lg leading-relaxed text-body">
-              Les séances de rééducation sur prescription médicale sont
-              réglées au tarif conventionné et remboursées par
-              l&apos;Assurance Maladie. La pressothérapie, acte de confort,
-              est à tarif libre.
+              Les séances de rééducation sur prescription médicale sont réglées
+              au tarif conventionné et remboursées par l&apos;Assurance Maladie.
+              La pressothérapie, acte de confort, est à tarif libre.
             </p>
           </div>
 
@@ -53,7 +52,7 @@ export default function TarifsPage() {
               <div className="flex flex-col gap-2.5">
                 <div className="flex gap-3 text-[17px] text-[#3B4A44]">
                   <span className="text-terracotta">—</span>
-                  <span>Réglable par carte, espèces ou chèque</span>
+                  <span>Réglable par carte, espèces ou virement</span>
                 </div>
                 <div className="flex gap-3 text-[17px] text-[#3B4A44]">
                   <span className="text-terracotta">—</span>
@@ -67,7 +66,10 @@ export default function TarifsPage() {
                   <span>Forfait 5 séances possible, à demander au cabinet</span>
                 </div>
               </div>
-              <ButtonLink href="/rendez-vous?category=PRESSOTHERAPIE" className="mt-auto">
+              <ButtonLink
+                href="/rendez-vous?category=PRESSOTHERAPIE"
+                className="mt-auto"
+              >
                 Réserver une séance de pressothérapie
               </ButtonLink>
             </div>
@@ -84,8 +86,7 @@ export default function TarifsPage() {
               <p className="text-[17.5px] leading-relaxed text-body">
                 Tarif conventionné secteur 1, sans dépassement
                 d&apos;honoraires. Le montant dépend du nombre d&apos;actes
-                prescrits : nous l&apos;établissons ensemble lors du bilan
-                initial.
+                prescrits.
               </p>
               <div className="flex flex-col gap-1.5 rounded-xl bg-linen p-5.5">
                 <span className="font-serif text-[26px]">Sur devis</span>
@@ -94,16 +95,19 @@ export default function TarifsPage() {
                   ouvrées.
                 </span>
               </div>
-              <ButtonLink href="/contact" variant="secondary" className="mt-auto">
+              <ButtonLink
+                href="/contact"
+                variant="secondary"
+                className="mt-auto"
+              >
                 Nous contacter
               </ButtonLink>
             </div>
           </div>
 
           <div className="max-w-3xl rounded-xl bg-sauge px-6.5 py-5.5 text-[16.5px] leading-relaxed text-sauge-ink">
-            Un rendez-vous non annulé 24 h à l&apos;avance pourra être
-            facturé. Vous pouvez annuler en un clic depuis l&apos;email de
-            confirmation.
+            Un rendez-vous non annulé 24 h à l&apos;avance pourra être facturé.
+            Vous pouvez annuler en un clic depuis l&apos;email de confirmation.
           </div>
         </div>
       </section>

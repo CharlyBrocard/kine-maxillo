@@ -6,7 +6,9 @@ export function Header({ current }: { current?: string }) {
     <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border-soft bg-linen/95 px-6 py-5 backdrop-blur sm:px-12">
       <Link href="/" className="flex flex-col leading-tight">
         <span className="font-serif text-xl">{siteConfig.praticienne}</span>
-        <span className="eyebrow">Kinésithérapie · {siteConfig.ville}</span>
+        <span className="eyebrow">
+          Masseur Kinésithérapeute · {siteConfig.ville}
+        </span>
       </Link>
 
       <div className="hidden items-center gap-8 md:flex">

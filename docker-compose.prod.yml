@@ -4,9 +4,18 @@
 # modèle : deploy/env.production.example).
 name: kine-maxillo
 
+# Journaux techniques bornés (rotation, ~30 Mo max par service) : sans ça,
+# les logs Docker grossissent indéfiniment (voir /confidentialite).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?}
@@ -39,6 +48,7 @@ services:
     build:
       context: .
       target: runner
+    logging: *logging
     restart: unless-stopped
     env_file: .env
     environment:

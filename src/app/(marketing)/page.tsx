@@ -11,7 +11,7 @@ const axes = [
   {
     n: "01",
     tone: "sauge" as const,
-    title: "Oro-maxillo-facial",
+    title: "Rééducation Oro-maxillo-faciale",
     text: "Douleurs et blocages de l'ATM, bruxisme, suites de chirurgie orthognathique, troubles de la déglutition et de la ventilation.",
     href: "/specialites#oro-maxillo-facial",
   },
@@ -61,7 +61,11 @@ export default function AccueilPage() {
               <ButtonLink href="/rendez-vous" size="lg">
                 Prendre rendez-vous
               </ButtonLink>
-              <ButtonLink href={siteConfig.telephoneHref} variant="secondary" size="lg">
+              <ButtonLink
+                href={siteConfig.telephoneHref}
+                variant="secondary"
+                size="lg"
+              >
                 {siteConfig.telephone}
               </ButtonLink>
             </div>
@@ -124,31 +128,39 @@ export default function AccueilPage() {
 
       <section className="bg-sable px-6 py-16 sm:px-12 sm:py-20">
         <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-          <PhotoPlaceholder label="portrait praticienne" className="h-72 sm:h-[380px]" />
+          <PhotoPlaceholder
+            label="portrait praticienne"
+            className="h-72 sm:h-[380px]"
+          />
           <div className="flex flex-col gap-5">
             <span className="eyebrow">À propos</span>
             <h3 className="text-balance font-serif text-3xl leading-tight sm:text-4xl">
-              Quatre ans de pratique, une spécialisation rare dans
-              l&apos;ouest lyonnais.
+              Plus de quatre ans de kinésithérapie, une spécialisation en
+              rééducation maxillo-faciale.
             </h3>
             <p className="max-w-xl text-[17.5px] leading-relaxed text-body">
-              Diplômée d&apos;État, formée à la rééducation maxillo-faciale et
-              à la thérapie manuelle, je travaille en lien étroit avec les
-              chirurgiens maxillo-faciaux, orthodontistes et ORL de la
-              région. Chaque séance dure {SLOT_DURATION_MINUTES} min, en
-              cabinet individuel.
+              Masseur-kinésithérapeute diplômée d&apos;État depuis plus de quatre
+              ans, je me suis formée à la rééducation maxillo-faciale et à la
+              thérapie manuelle pour accompagner les troubles de la mâchoire, de
+              la face et de la déglutition. Je travaille en lien avec les
+              chirurgiens maxillo-faciaux, orthodontistes et ORL de la région.
+              Les séances ont lieu en cabinet individuel, avec une durée adaptée
+              à chaque prise en charge.
             </p>
-            <div className="flex flex-wrap gap-4">
+            {/* Colonnes égales : 3 côte à côte quand la place le permet
+                (pleine largeur sm, colonne de droite large xl), empilées
+                sinon — "Maxillo-facial" passerait sur deux lignes. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1 xl:grid-cols-3">
               {[
-                ["4 ans", "de pratique"],
-                [`${SLOT_DURATION_MINUTES} min`, "par séance"],
+                ["+ de 4 ans", "d'expérience"],
+                ["Maxillo-facial", "spécialisation"],
                 [siteConfig.ville, siteConfig.zone],
               ].map(([big, small]) => (
                 <div
                   key={big}
-                  className="flex min-w-[150px] flex-col gap-1 rounded-xl bg-linen px-6 py-4.5"
+                  className="flex min-w-0 flex-col gap-1 rounded-xl bg-linen px-5 py-4"
                 >
-                  <span className="font-serif text-[28px]">{big}</span>
+                  <span className="font-serif text-[22px] leading-tight">{big}</span>
                   <span className="text-sm text-muted">{small}</span>
                 </div>
               ))}
@@ -169,7 +181,11 @@ export default function AccueilPage() {
           <ButtonLink href="/rendez-vous" size="lg">
             Prendre rendez-vous
           </ButtonLink>
-          <ButtonLink href={siteConfig.telephoneHref} variant="secondary" size="lg">
+          <ButtonLink
+            href={siteConfig.telephoneHref}
+            variant="secondary"
+            size="lg"
+          >
             {siteConfig.telephone}
           </ButtonLink>
         </div>

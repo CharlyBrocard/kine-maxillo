@@ -1,6 +1,6 @@
 import type { Appointment } from "@prisma/client";
-import { categoryLabel } from "@/lib/categories";
-import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
+import { categoryLabel, sessionDurationLabel } from "@/lib/categories";
+import { PENDING_HOLD_MINUTES } from "@/lib/booking-constants";
 import { formatCabinetDate, formatCabinetTime } from "@/lib/date-utils";
 import { siteConfig } from "@/lib/site-config";
 import { practitionerNotificationEmail, siteUrl, type Email } from "@/lib/email/send";
@@ -52,7 +52,9 @@ function when(appointment: AppointmentForEmail): string {
 function summaryLines(appointment: AppointmentForEmail): string[] {
   return [
     when(appointment),
-    `${categoryLabel(appointment.category)} · ${SLOT_DURATION_MINUTES} min`,
+    [categoryLabel(appointment.category), sessionDurationLabel(appointment.category)]
+      .filter(Boolean)
+      .join(" · "),
     `${siteConfig.adresseLigne1}, ${siteConfig.adresseLigne2}`,
   ];
 }

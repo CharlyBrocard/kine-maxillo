@@ -42,7 +42,7 @@ export function Footer() {
           <Link href="/mentions-legales" className="hover:text-white">
             Mentions légales
           </Link>
-          <Link href="/mentions-legales#confidentialite" className="hover:text-white">
+          <Link href="/confidentialite" className="hover:text-white">
             Politique de confidentialité
           </Link>
           <Link href="/mentions-legales#accessibilite" className="hover:text-white">

@@ -62,7 +62,7 @@ export const siteConfig = {
   siret: "900 123 456 00019",
   assuranceRcp: "MACSF",
 
-  tarifPresso: "45 €",
+  tarifPresso: "30 €",
 } as const;
 
 export const nav = [
