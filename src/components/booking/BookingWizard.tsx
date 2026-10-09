@@ -4,9 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Stepper } from "@/components/booking/Stepper";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
-import { categories, categoryLabel, type CategoryId } from "@/lib/categories";
+import {
+  categories,
+  categoryLabel,
+  sessionDurationLabel,
+  type CategoryId,
+} from "@/lib/categories";
 import { maxilloMotifs, MOTIF_AUTRE } from "@/lib/motifs";
-import { PENDING_HOLD_MINUTES, SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
+import { PENDING_HOLD_MINUTES } from "@/lib/booking-constants";
 import {
   addCabinetDays,
   cabinetDayOfMonth,
@@ -141,7 +146,9 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
         weekday: "long",
         day: "numeric",
         month: "long",
-      })} à ${formatCabinetTime(new Date(selectedSlot.start))} — ${SLOT_DURATION_MINUTES} min`
+      })} à ${formatCabinetTime(new Date(selectedSlot.start))}${
+        category && sessionDurationLabel(category) ? ` — ${sessionDurationLabel(category)}` : ""
+      }`
     : null;
 
   async function submitRequest(e: React.FormEvent) {
@@ -500,7 +507,8 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 {formatCabinetTime(new Date(selectedSlot.start))}
               </span>
               <span className="text-[15.5px] text-body">
-                {categoryLabel(category)} · {SLOT_DURATION_MINUTES} min
+                {categoryLabel(category)}
+                {sessionDurationLabel(category) && ` · ${sessionDurationLabel(category)}`}
               </span>
             </div>
             <button
@@ -528,7 +536,10 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
             Cliquez dessus pour confirmer le créneau ci-dessous.
           </p>
           <div className="w-full rounded-2xl border border-border bg-white p-5 text-left">
-            <span className="eyebrow">Créneau réservé {SLOT_DURATION_MINUTES} min</span>
+            <span className="eyebrow">
+              Créneau réservé
+              {category && sessionDurationLabel(category) && ` · ${sessionDurationLabel(category)}`}
+            </span>
             <div className="font-serif text-[22px]">
               {formatCabinetDate(new Date(selectedSlot.start), {
                 weekday: "long",

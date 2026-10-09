@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
-import { SLOT_DURATION_MINUTES } from "@/lib/booking-constants";
+import { sessionDurationLabel, type CategoryId } from "@/lib/categories";
 import { formatCabinetDate, formatCabinetTime } from "@/lib/date-utils";
 import { gqlRequest, GraphQLRequestError } from "@/lib/graphql-client";
 
@@ -14,6 +14,7 @@ const CONFIRM_APPOINTMENT_MUTATION = /* GraphQL */ `
     confirmAppointment(token: $token) {
       appointment {
         slotStart
+        category
         reason
       }
       cancellationToken
@@ -23,6 +24,7 @@ const CONFIRM_APPOINTMENT_MUTATION = /* GraphQL */ `
 
 type Result = {
   slotStart: string;
+  category: CategoryId;
   reason: string | null;
   cancellationToken: string;
 };
@@ -45,7 +47,7 @@ export function ConfirmationClient() {
         }
         return gqlRequest<{
           confirmAppointment: {
-            appointment: { slotStart: string; reason: string | null };
+            appointment: { slotStart: string; category: CategoryId; reason: string | null };
             cancellationToken: string;
           };
         }>(CONFIRM_APPOINTMENT_MUTATION, { token });
@@ -54,6 +56,7 @@ export function ConfirmationClient() {
         if (cancelled) return;
         setResult({
           slotStart: data.confirmAppointment.appointment.slotStart,
+          category: data.confirmAppointment.appointment.category,
           reason: data.confirmAppointment.appointment.reason,
           cancellationToken: data.confirmAppointment.cancellationToken,
         });
@@ -118,7 +121,9 @@ export function ConfirmationClient() {
             {formatCabinetTime(slotStart)}
           </span>
           <span className="text-[15px] text-[#3B4A44]">
-            Durée {SLOT_DURATION_MINUTES} min — arrivez 5 min avant
+            {sessionDurationLabel(result.category)
+              ? `Durée ${sessionDurationLabel(result.category)} — arrivez 5 min avant`
+              : "Arrivez 5 min avant"}
           </span>
         </div>
         <div className="my-3.5 h-px bg-accent/20" />
