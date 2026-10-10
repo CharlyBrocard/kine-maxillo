@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/confidentialite" },
 };
 
-const LAST_UPDATE = "9 octobre 2026";
+const LAST_UPDATE = "10 octobre 2026";
 const BACKUP_RETENTION_DAYS = 14;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -143,7 +143,7 @@ export default function ConfidentialitePage() {
                   duration={`Créneau libéré après ${PENDING_HOLD_MINUTES} minutes, données supprimées ${UNCONFIRMED_RETENTION_DAYS} jours après la demande`}
                 />
                 <Row
-                  what="Motif de consultation"
+                  what="Motif de consultation (sur le site)"
                   duration={`Effacé dès l'annulation, sinon ${REASON_RETENTION_DAYS} jours après le rendez-vous`}
                 />
                 <Row
@@ -171,7 +171,12 @@ export default function ConfidentialitePage() {
           <Section title="Qui a accès à vos données">
             <p>
               Seule la praticienne a accès à vos rendez-vous, via un espace
-              protégé par mot de passe. Pour faire fonctionner le site, elle
+              protégé par mot de passe. Elle reçoit aussi une notification
+              par email pour chaque nouveau rendez-vous, avec vos coordonnées
+              et le motif de consultation : cette copie est conservée dans sa
+              messagerie professionnelle, sous sa responsabilité, et
+              n&apos;est pas concernée par l&apos;effacement automatique du
+              site. Pour faire fonctionner le site, elle
               fait appel aux prestataires suivants, qui n&apos;utilisent pas vos
               données pour leur propre compte :
             </p>
@@ -190,8 +195,10 @@ export default function ConfidentialitePage() {
               <li>
                 <strong className="text-ink">Brevo</strong> (société française)
                 : envoi des emails de rendez-vous. Brevo reçoit votre nom, votre
-                email et les informations du rendez-vous — jamais le motif de
-                consultation.
+                email et les informations du rendez-vous. Le motif de
+                consultation n&apos;est transmis que dans l&apos;email de
+                notification adressé à la praticienne, jamais dans les emails
+                qui vous sont envoyés.
               </li>
               <li>
                 <strong className="text-ink">OpenStreetMap</strong> : la carte de

@@ -390,6 +390,8 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 Nom et prénom
                 <input
                   required
+                  name="name"
+                  autoComplete="name"
                   maxLength={PATIENT_NAME_MAX}
                   value={nom}
                   onChange={(e) => setNom(e.target.value)}
@@ -401,6 +403,9 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 <input
                   required
                   type="tel"
+                  name="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
                   maxLength={PATIENT_PHONE_MAX}
                   value={telephone}
                   onChange={(e) => setTelephone(e.target.value)}
@@ -412,6 +417,8 @@ export function BookingWizard({ categoryInitial }: { categoryInitial?: CategoryI
                 <input
                   required
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   maxLength={PATIENT_EMAIL_MAX}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

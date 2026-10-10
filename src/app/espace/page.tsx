@@ -65,11 +65,13 @@ export default function EspaceLoginPage() {
             Email
             <input
               type="email"
+              name="email"
+              autoComplete="username"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="johanna@kine-maxillo-lyon.com"
-              className="h-[56px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5 text-[17px] text-ink focus:border-accent focus:outline-none"
+              placeholder="Votre adresse email"
+              className="h-[56px] rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5 text-[17px] text-ink placeholder:text-[#9AA5A0] focus:border-accent focus:outline-none"
             />
           </label>
           <label className="flex flex-col gap-1.5 text-[15px] text-body">
@@ -77,10 +79,13 @@ export default function EspaceLoginPage() {
             <div className="flex h-[56px] items-center justify-between rounded-[10px] border-[1.5px] border-border-strong bg-linen px-4.5">
               <input
                 type={showPassword ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-full flex-1 bg-transparent text-[17px] text-ink focus:outline-none"
+                placeholder="Votre mot de passe"
+                className="h-full flex-1 bg-transparent text-[17px] text-ink placeholder:text-[#9AA5A0] focus:outline-none"
               />
               <button
                 type="button"
