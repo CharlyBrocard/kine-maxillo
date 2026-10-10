@@ -1,5 +1,13 @@
 # Site vitrine + prise de RDV — Kiné maxillo-facial (Lyon)
 
+> **Statut : en production depuis le 2026-10-10** sur
+> https://kine-maxillo-lyon.com (VPS Hostinger, Docker Compose derrière
+> Nginx, HTTPS Let's Encrypt). Test complet validé en conditions réelles :
+> ouverture de créneau, réservation, emails (validation, confirmation avec
+> .ics, notification praticienne), agenda, annulation. Mise à jour :
+> procédure "Mise à jour du site" du README. Suite : voir "Après la mise
+> en ligne" en fin de fichier.
+
 ## Contexte
 Site pour une kinésithérapeute spécialisée en rééducation oro-maxillo-faciale
 (Lyon). Objectif : vitrine + prise de RDV ponctuelle, sans compte utilisateur
@@ -310,7 +318,10 @@ type Mutation {
     anti-double-booking, idempotence confirm/cancel, protection des
     opérations admin) et l'auth. Pas de CI qui les rejoue automatiquement
     pour l'instant — juste `npm test` en local.
-14. Déploiement sur le VPS — **fichiers prêts et testés en local**
+14. ~~Déploiement sur le VPS~~ — **fait, site en ligne le 2026-10-10**
+    (DNS OVH → VPS, certificat Let's Encrypt jusqu'au 2027-01-08 avec
+    renouvellement automatique vérifié, sauvegardes cron 3 h, liste
+    blanche IP Brevo active). Historique : fichiers préparés et testés en local
     (`Dockerfile`, `docker-compose.prod.yml`, `deploy/`), procédure dans
     README "Déploiement". Reste à l'exécuter sur le VPS.
     - VPS (relevé le 2026-10-07) : Ubuntu 24.04, 1 CPU, 3,8 Go RAM,
@@ -468,3 +479,24 @@ type Mutation {
       charge").
     - **Image de partage** (Open Graph) : à créer une fois les vraies
       photos disponibles (aperçu du lien sur WhatsApp, Facebook…).
+
+## Après la mise en ligne
+
+- **Fiche Google Business Profile** : nom, adresse, téléphone strictement
+  identiques au site, URL du site et lien de RDV ; puis ajouter l'URL de
+  la fiche dans les données structurées (`sameAs`).
+- **Google Search Console** : valider le domaine (TXT chez OVH),
+  soumettre `https://kine-maxillo-lyon.com/sitemap.xml`, tester les
+  données structurées (Rich Results Test).
+- **Copie des sauvegardes hors du VPS** : aujourd'hui sur le même disque
+  que la base (protège d'une erreur, pas d'une perte du serveur).
+- **Nettoyage kineapp sur le VPS** (hors de ce projet) : certificats
+  `kineapp.charlybrocard.com` (+ `api.`) qui ne se renouvellent plus.
+  Ordre impératif : retirer d'abord les blocs Nginx qui les utilisent,
+  puis `certbot delete` — sinon Nginx ne redémarre plus et tous les
+  sites du VPS tombent.
+- **DMARC** : passer de `p=none` à `p=quarantine` après quelques semaines
+  sans problème d'envoi.
+- **Dev local** : sans `BREVO_API_KEY` dans le `.env` local (la liste
+  blanche Brevo refuse l'IP de la box) — emails affichés en console.
+
