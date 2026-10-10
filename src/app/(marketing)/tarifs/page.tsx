@@ -89,18 +89,19 @@ export default function TarifsPage() {
                 prescrits.
               </p>
               <div className="flex flex-col gap-1.5 rounded-xl bg-linen p-5.5">
-                <span className="font-serif text-[26px]">Sur devis</span>
+                <span className="font-serif text-[26px]">Remboursé</span>
                 <span className="text-base leading-relaxed text-body">
-                  Appelez le cabinet ou écrivez-nous : réponse sous 24 h
-                  ouvrées.
+                  60 % par l&apos;Assurance Maladie, le complément par votre
+                  mutuelle selon votre contrat. Pensez à apporter votre
+                  ordonnance, votre carte Vitale et votre carte de mutuelle.
                 </span>
               </div>
               <ButtonLink
-                href="/contact"
+                href="/rendez-vous?category=MAXILLO_FACIAL"
                 variant="secondary"
                 className="mt-auto"
               >
-                Nous contacter
+                Prendre rendez-vous
               </ButtonLink>
             </div>
           </div>

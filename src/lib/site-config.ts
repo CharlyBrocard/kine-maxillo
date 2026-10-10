@@ -1,7 +1,6 @@
 /**
- * Données du cabinet. Nom, adresse, téléphone et email sont réels ; le
- * reste (RPPS/ADELI, SIRET, tarif pressothérapie, photos) reste
- * placeholder — voir "Infos encore à récupérer" dans PROJECT.md.
+ * Données du cabinet (toutes réelles, validées par la praticienne) :
+ * identité, coordonnées, numéros professionnels, hébergeur, tarifs.
  */
 export const siteConfig = {
   /** URL canonique de production (SEO : canonical, sitemap, données structurées). */
@@ -57,12 +56,20 @@ export const siteConfig = {
     "Lyon",
   ],
 
-  rpps: "10100200300",
-  adeli: "699912345",
-  siret: "900 123 456 00019",
-  assuranceRcp: "MACSF",
+  rpps: "10108073874",
+  adeli: "697024172",
+  siret: "918 797 531 00038",
+  assuranceRcp: "La Médicale",
 
   tarifPresso: "30 €",
+
+  /** Hébergeur du site (mentions légales, politique de confidentialité). */
+  hebergeur: {
+    nom: "Hostinger International Ltd.",
+    adresse: "61 Lordou Vironos Street, 6023 Larnaca, Chypre",
+    site: "https://www.hostinger.fr",
+    localisationServeur: "France (Paris)",
+  },
 } as const;
 
 export const nav = [

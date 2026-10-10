@@ -5,6 +5,13 @@ import { ButtonLink } from "@/components/ui/Button";
 import { AtmIllustration } from "@/components/illustrations/AtmIllustration";
 import { PressotherapieIllustration } from "@/components/illustrations/PressotherapieIllustration";
 import { ReeducationIllustration } from "@/components/illustrations/ReeducationIllustration";
+import { maxilloMotifs } from "@/lib/motifs";
+
+// Motifs du formulaire de RDV propres à l'oro-maxillo-facial : la
+// rééducation fonctionnelle a son propre bloc, "Autre" n'a pas de sens ici.
+const maxilloSpecialiteMotifs = maxilloMotifs.filter(
+  (m) => m.id !== "REEDUCATION_FONCTIONNELLE" && m.id !== "AUTRE"
+);
 
 function Bullet({
   children,
@@ -68,20 +75,11 @@ export default function SpecialitesPage() {
               combine thérapie manuelle douce, exercices de mobilité et travail
               sur les habitudes de mastication et de ventilation.
             </p>
+            {/* Mêmes motifs, dans le même ordre, que le formulaire de RDV. */}
             <div className="flex flex-col gap-2.5 pt-1">
-              <Bullet>
-                Douleurs et craquements de l&apos;ATM, blocages, limitation
-                d&apos;ouverture
-              </Bullet>
-              <Bullet>Bruxisme, tensions liées au stress</Bullet>
-              <Bullet>
-                Suites de chirurgie orthognathique et de traitement
-                orthodontique
-              </Bullet>
-              <Bullet>
-                Troubles de la déglutition, respiration buccale, paralysie
-                faciale
-              </Bullet>
+              {maxilloSpecialiteMotifs.map((m) => (
+                <Bullet key={m.id}>{m.label}</Bullet>
+              ))}
             </div>
             <div className="rounded-xl bg-sauge px-6 py-5 text-[16.5px] leading-relaxed text-sauge-ink">
               Sur prescription médicale. Prise en charge par l&apos;Assurance

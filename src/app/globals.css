@@ -67,18 +67,4 @@ body {
   color: var(--color-faint);
 }
 
-.placeholder-photo {
-  background-image: repeating-linear-gradient(
-    135deg,
-    var(--color-sable) 0 14px,
-    #e6e1d6 14px 28px
-  );
-}
 
-.placeholder-photo-terracotta {
-  background-image: repeating-linear-gradient(
-    135deg,
-    var(--color-terracotta-soft) 0 14px,
-    #ebdacf 14px 28px
-  );
-}

@@ -61,9 +61,15 @@ export default function MentionsLegalesPage() {
           </Section>
 
           <Section title="Hébergement">
+            <p>{siteConfig.hebergeur.nom}</p>
+            <p>{siteConfig.hebergeur.adresse}</p>
             <p>
-              Site hébergé par un prestataire dont les coordonnées seront
-              précisées ici avant mise en ligne.
+              <a href={siteConfig.hebergeur.site} className="underline underline-offset-4">
+                {siteConfig.hebergeur.site.replace("https://", "")}
+              </a>
+            </p>
+            <p>
+              Serveur situé en {siteConfig.hebergeur.localisationServeur}.
             </p>
           </Section>
 
