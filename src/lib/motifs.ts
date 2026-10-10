@@ -41,3 +41,22 @@ export function findMaxilloMotif(id: string) {
 export function storedMotifLabel(id: MaxilloMotifId): string {
   return id === MOTIF_AUTRE ? "Autre" : findMaxilloMotif(id)!.label;
 }
+
+/**
+ * Sépare le motif enregistré ("<motif> — <précision>" en maxillo, la
+ * précision seule sinon — voir composeReason dans validation.ts) en motif
+ * choisi et commentaire libre, pour l'affichage.
+ */
+export function splitStoredReason(
+  category: "MAXILLO_FACIAL" | "PRESSOTHERAPIE",
+  reason: string | null
+): { motif: string | null; commentaire: string | null } {
+  if (!reason) return { motif: null, commentaire: null };
+  if (category !== "MAXILLO_FACIAL") return { motif: null, commentaire: reason };
+  const label = maxilloMotifs
+    .map((m) => storedMotifLabel(m.id))
+    .find((l) => reason === l || reason.startsWith(`${l} — `));
+  if (!label) return { motif: null, commentaire: reason };
+  const commentaire = reason.slice(label.length).replace(/^ — /, "").trim();
+  return { motif: label, commentaire: commentaire || null };
+}

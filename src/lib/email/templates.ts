@@ -1,5 +1,6 @@
 import type { Appointment } from "@prisma/client";
 import { categoryLabel, sessionDurationLabel } from "@/lib/categories";
+import { splitStoredReason } from "@/lib/motifs";
 import { PENDING_HOLD_MINUTES } from "@/lib/booking-constants";
 import { formatCabinetDate, formatCabinetTime } from "@/lib/date-utils";
 import { siteConfig } from "@/lib/site-config";
@@ -7,15 +8,18 @@ import { practitionerNotificationEmail, siteUrl, type Email } from "@/lib/email/
 import { buildIcs, googleCalendarUrl, type CalendarEvent } from "@/lib/email/ics";
 
 /**
- * Contenu des emails transactionnels. Le motif du RDV n'apparaît dans
- * aucun email (donnée de santé potentielle, voir "Décisions produit"
- * dans PROJECT.md) : la praticienne le consulte dans le backoffice.
+ * Contenu des emails transactionnels. Le motif du RDV (donnée de santé
+ * potentielle) n'apparaît que dans la notification "Nouveau RDV" envoyée à
+ * la praticienne — à sa demande (voir "Décisions produit" dans PROJECT.md).
+ * Jamais dans les emails patient, ni dans les événements d'agenda (.ics,
+ * lien Google Agenda), synchronisés chez des tiers.
  */
 
 type AppointmentForEmail = Pick<
   Appointment,
   "id" | "slotStart" | "category" | "patientName" | "patientEmail" | "patientPhone"
->;
+> &
+  Partial<Pick<Appointment, "reason">>;
 
 const ICS_NAME = "rendez-vous.ics";
 const CALENDAR_HINT =
@@ -216,6 +220,14 @@ function practitionerEmail(
   const to = practitionerNotificationEmail();
   if (!to) return null;
   const contact = [`${appointment.patientName}`, appointment.patientPhone, appointment.patientEmail];
+  // Motif et commentaire : seulement pour un nouveau RDV (withCalendar).
+  const { motif, commentaire } = withCalendar
+    ? splitStoredReason(appointment.category, appointment.reason ?? null)
+    : { motif: null, commentaire: null };
+  const reasonLines = [
+    ...(motif ? [`Motif : ${motif}`] : []),
+    ...(commentaire ? [`Commentaire : ${commentaire}`] : []),
+  ];
   const backoffice = `${siteUrl()}/espace/agenda`;
   const agenda = `Espace praticienne : ${backoffice}`;
   // Sans le motif (donnée de santé) : l'agenda est synchronisé chez Apple/Google.
@@ -241,11 +253,12 @@ function practitionerEmail(
       "",
       ...contact,
       "",
+      ...(reasonLines.length ? [...reasonLines, ""] : []),
       ...(googleLink ? [CALENDAR_HINT, `Ajouter à Google Agenda : ${googleLink}`, ""] : []),
       agenda,
     ].join("\n"),
     html: layout({
-      paragraphs: [intro, ...contact],
+      paragraphs: [intro, ...contact, ...reasonLines],
       summary: [when(appointment), categoryLabel(appointment.category)],
       ...(googleLink ? { calendar: { hint: CALENDAR_HINT, googleUrl: googleLink } } : {}),
       button: { label: "Voir dans l'espace praticienne", href: backoffice },

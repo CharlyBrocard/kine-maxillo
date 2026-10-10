@@ -618,7 +618,7 @@ describe("emails", () => {
       slotStart: futureDate(DAY),
       category: "MAXILLO_FACIAL",
       patientName: "Marie <b>Curie</b>",
-      reason: "douleur ATM",
+      reason: "Bruxisme, serrement des dents — la nuit <script>",
     });
     const confirm = () =>
       exec(
@@ -633,11 +633,18 @@ describe("emails", () => {
     expect(devOutbox.map((e) => e.to).sort()).toEqual(["cabinet@example.com", "test@example.com"]);
     const patientEmail = devOutbox.find((e) => e.to === "test@example.com")!;
     expect(patientEmail.text).toContain(`/rendez-vous/annule?token=${appt.cancellationToken}`);
-    // Motif jamais envoyé par email, et contenu patient échappé dans le HTML.
+    // Motif et commentaire : dans la notification praticienne uniquement,
+    // jamais dans l'email patient ni dans le .ics ; contenu patient échappé.
+    const practitioner = devOutbox.find((e) => e.to === "cabinet@example.com")!;
+    expect(practitioner.text).toContain("Motif : Bruxisme, serrement des dents");
+    expect(practitioner.text).toContain("Commentaire : la nuit <script>");
+    expect(practitioner.html).toContain("Commentaire : la nuit &lt;script&gt;");
+    expect(practitioner.attachments?.[0].content).not.toContain("la nuit");
+    expect(patientEmail.text).not.toContain("Bruxisme");
+    expect(patientEmail.html).not.toContain("la nuit");
     for (const e of devOutbox) {
-      expect(e.text).not.toContain("douleur ATM");
-      expect(e.html).not.toContain("douleur ATM");
       expect(e.html).not.toContain("<b>Curie</b>");
+      expect(e.html).not.toContain("<script>");
     }
   });
 

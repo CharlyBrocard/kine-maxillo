@@ -121,6 +121,12 @@ bon nom de domaine une fois le SEO local travaillé.
 - **Donnée de santé potentielle** : le champ "motif" du RDV est traité comme
   sensible → minimisation, purge après un délai, hébergement maîtrisé (VPS
   propre plutôt que SaaS US).
+  **Exception choisie par l'utilisateur (2026-10-10)** : le motif et le
+  commentaire figurent dans l'email "Nouveau RDV" envoyé à la praticienne
+  (confort : pas besoin d'ouvrir le backoffice). Conséquences acceptées :
+  transit par Brevo, copie conservée dans la boîte Gmail (hors purge du
+  site) — politique de confidentialité mise à jour. Toujours exclu des
+  emails patient et des événements d'agenda (.ics, lien Google Agenda).
 
 ## Stack technique
 
@@ -238,8 +244,8 @@ type Mutation {
      (`resendConfirmationEmail`, 2 renvois max par RDV).
    - Praticienne (`PRACTITIONER_NOTIFICATION_EMAIL`) : chaque RDV confirmé
      et chaque annulation par un patient.
-   - Le motif n'est dans **aucun** email (donnée de santé, boîte mail
-     tierce) : la praticienne le lit dans le backoffice.
+   - Motif : initialement dans aucun email ; depuis le 2026-10-10, présent
+     dans la notification praticienne uniquement (voir "Décisions produit").
    - Les tokens ne sont plus renvoyés par `requestAppointment` (ils ne
      partent que par email) et le lien de démo est retiré.
    - Config prévue : compte Brevo créé avec une Gmail dédiée ; expéditeur

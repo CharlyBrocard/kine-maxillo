@@ -110,3 +110,40 @@ describe("session duration in emails", () => {
     expect(presso.text).toContain("Pressothérapie · 30 min");
   });
 });
+
+describe("splitStoredReason", () => {
+  it("separates the chosen motif from the free comment", async () => {
+    const { splitStoredReason } = await import("@/lib/motifs");
+    expect(splitStoredReason("MAXILLO_FACIAL", "Bruxisme, serrement des dents — la nuit")).toEqual({
+      motif: "Bruxisme, serrement des dents",
+      commentaire: "la nuit",
+    });
+    expect(splitStoredReason("MAXILLO_FACIAL", "Paralysie faciale")).toEqual({
+      motif: "Paralysie faciale",
+      commentaire: null,
+    });
+    expect(splitStoredReason("MAXILLO_FACIAL", "Autre — acouphènes")).toEqual({
+      motif: "Autre",
+      commentaire: "acouphènes",
+    });
+    expect(splitStoredReason("PRESSOTHERAPIE", "jambes lourdes")).toEqual({
+      motif: null,
+      commentaire: "jambes lourdes",
+    });
+    expect(splitStoredReason("MAXILLO_FACIAL", null)).toEqual({ motif: null, commentaire: null });
+  });
+
+  it("shows motif and comment in the practitioner's new-appointment email only", () => {
+    process.env.PRACTITIONER_NOTIFICATION_EMAIL = "cabinet@example.com";
+    const email = newAppointmentNotification({
+      ...base,
+      category: "MAXILLO_FACIAL",
+      reason: "Autre — acouphènes",
+    })!;
+    delete process.env.PRACTITIONER_NOTIFICATION_EMAIL;
+    expect(email.text).toContain("Motif : Autre");
+    expect(email.text).toContain("Commentaire : acouphènes");
+    expect(email.attachments?.[0].content).not.toContain("acouphènes");
+    expect(email.html).not.toMatch(/calendar\.google\.com[^"]*acouph/);
+  });
+});
